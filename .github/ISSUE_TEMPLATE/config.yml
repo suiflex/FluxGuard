@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/suiflex/FluxGuard/security/advisories/new
     about: Report exploitable vulnerabilities privately; do not open a public issue.
   - name: Code of Conduct
-    url: https://github.com/suiflex/FluxGuard/blob/main/CODE_OF_CONDUCT.md
+    url: https://github.com/suiflex/FluxGuard/blob/develop/CODE_OF_CONDUCT.md
     about: Read the community standards before participating.

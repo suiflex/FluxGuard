@@ -26,7 +26,7 @@ Keep one logical change per pull request.
 ## First pull request?
 
 - [ ] I have signed the
-      [Contributor License Agreement](https://github.com/suiflex/FluxGuard/blob/main/CLA.md)
+      [Contributor License Agreement](https://github.com/suiflex/FluxGuard/blob/develop/CLA.md)
       by posting the required one-line comment.
 
 ## Notes for reviewers

@@ -198,7 +198,7 @@ chore(scope): update build workflow
 
 ## Branches and pull requests
 
-Branch from `main` with a professional type-prefixed name:
+Branch from `develop` with a professional type-prefixed name:
 
 ```text
 feat/fluxguard-codex-adapter
