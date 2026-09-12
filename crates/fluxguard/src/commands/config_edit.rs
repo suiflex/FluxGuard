@@ -99,18 +99,8 @@ const SOURCES: &[Source] = &[
     },
 ];
 
-/// Threshold presets, so the common case is one keypress rather than four
-/// numbers. `None` opens the four prompts.
-const PRESETS: &[(&str, Option<[f64; 4]>)] = &[
-    (
-        "balanced — 50 / 25 / 10 / 3 (default)",
-        Some([50.0, 25.0, 10.0, 3.0]),
-    ),
-    ("cautious — 65 / 40 / 20 / 5", Some([65.0, 40.0, 20.0, 5.0])),
-    ("relaxed — 35 / 15 / 7 / 2", Some([35.0, 15.0, 7.0, 2.0])),
-    ("keep current", None),
-    ("custom", None),
-];
+/// The thresholds, asked in the order they must descend.
+const THRESHOLDS: [&str; 4] = ["guarded", "conserve", "critical", "emergency"];
 
 fn enabled_in(config: &Config, key: &str) -> bool {
     match key {
@@ -214,39 +204,50 @@ fn selected_keys(rows: &[String], picked: &[String]) -> Vec<&'static str> {
         .collect()
 }
 
-fn thresholds_prompt(current: [f64; 4]) -> Result<[f64; 4], CliError> {
-    let labels: Vec<String> = PRESETS
-        .iter()
-        .map(|(label, _)| (*label).to_owned())
-        .collect();
-    let picked = inquire::Select::new("Pressure thresholds?", labels.clone())
-        .with_render_config(theme::render_config())
-        .with_help_message("remaining % for guarded / conserve / critical / emergency")
-        .prompt()
-        .map_err(|_| CliError::InstallCancelled)?;
-    let index = labels
-        .iter()
-        .position(|label| *label == picked)
-        .unwrap_or_default();
-    match PRESETS.get(index) {
-        Some((_, Some(preset))) => Ok(*preset),
-        Some((label, None)) if *label == "keep current" => Ok(current),
-        _ => custom_thresholds(current),
+/// Why a threshold cannot be accepted, phrased for the prompt that rejected it.
+/// `above` is the level this one must stay under, absent for the first.
+fn threshold_error(name: &str, above: Option<(&str, f64)>, value: f64) -> Option<String> {
+    if !value.is_finite() || !(0.0..=100.0).contains(&value) {
+        return Some("enter a number between 0 and 100".to_owned());
+    }
+    // Each level must sit below the one before it, or the pressure ladder has a
+    // rung that can never be reached.
+    match above {
+        Some((previous, ceiling)) if value > ceiling => Some(format!(
+            "{name} must be at most {ceiling}, the {previous} threshold above it"
+        )),
+        _ => None,
     }
 }
 
-fn custom_thresholds(current: [f64; 4]) -> Result<[f64; 4], CliError> {
-    let names = [
-        "guarded remaining %",
-        "conserve remaining %",
-        "critical remaining %",
-        "emergency remaining %",
-    ];
+/// Ask for the four thresholds one at a time, each rejected on the spot when it
+/// breaks the order, so a typo is corrected where it was made rather than
+/// failing the whole screen at the end.
+fn thresholds_prompt(current: [f64; 4]) -> Result<[f64; 4], CliError> {
     let mut values = current;
-    for (slot, name) in names.iter().enumerate() {
-        values[slot] = inquire::CustomType::<f64>::new(name)
-            .with_default(current[slot])
+    for slot in 0..THRESHOLDS.len() {
+        let name = THRESHOLDS[slot];
+        let above = slot
+            .checked_sub(1)
+            .map(|previous| (THRESHOLDS[previous], values[previous]));
+        let ceiling = above.map_or(100.0, |(_, ceiling)| ceiling);
+        let help = match above {
+            None => "remaining % that starts this level · 0–100".to_owned(),
+            Some((previous, _)) => {
+                format!("remaining % that starts this level · 0–{ceiling} (at most {previous})")
+            }
+        };
+        let validator = move |value: &f64| match threshold_error(name, above, *value) {
+            Some(message) => Ok(inquire::validator::Validation::Invalid(message.into())),
+            None => Ok(inquire::validator::Validation::Valid),
+        };
+        values[slot] = inquire::CustomType::<f64>::new(&format!("{name} remaining %"))
+            // Offering the current value keeps Enter meaningful: it keeps what
+            // is already configured.
+            .with_default(current[slot].min(ceiling))
             .with_error_message("enter a number between 0 and 100")
+            .with_validator(validator)
+            .with_help_message(&help)
             .with_render_config(theme::render_config())
             .prompt()
             .map_err(|_| CliError::InstallCancelled)?;
@@ -481,19 +482,30 @@ mod tests {
     }
 
     #[test]
-    fn presets_are_ordered_and_valid() {
-        for (label, preset) in PRESETS {
-            let Some([guarded, conserve, critical, emergency]) = preset else {
-                continue;
-            };
-            assert!(
-                100.0 >= *guarded
-                    && guarded >= conserve
-                    && conserve >= critical
-                    && critical >= emergency
-                    && *emergency >= 0.0,
-                "{label}"
-            );
-        }
+    fn thresholds_are_rejected_where_the_typo_was_made() {
+        // Out of range, whatever sits above it.
+        assert!(threshold_error("guarded", None, 120.0).is_some());
+        assert!(threshold_error("guarded", None, -1.0).is_some());
+        assert!(threshold_error("guarded", None, f64::NAN).is_some());
+        assert!(threshold_error("guarded", None, 50.0).is_none());
+
+        // The example that started this: conserve typed above guarded.
+        let message = threshold_error("conserve", Some(("guarded", 50.0)), 60.0)
+            .expect("a higher value than the level above must be refused");
+        assert!(message.contains("at most 50"), "{message}");
+        assert!(message.contains("guarded"), "{message}");
+
+        // Equal is allowed; the ladder only forbids climbing back up.
+        assert!(threshold_error("conserve", Some(("guarded", 50.0)), 50.0).is_none());
+        assert!(threshold_error("conserve", Some(("guarded", 50.0)), 25.0).is_none());
+    }
+
+    #[test]
+    fn every_threshold_is_named_in_descending_order() {
+        assert_eq!(
+            THRESHOLDS,
+            ["guarded", "conserve", "critical", "emergency"],
+            "the prompt order is the order the values must descend in",
+        );
     }
 }
