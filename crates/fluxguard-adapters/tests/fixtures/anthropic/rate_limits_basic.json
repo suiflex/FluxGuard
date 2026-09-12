@@ -1,0 +1,11 @@
+{
+  "requestsLimit": 5000,
+  "requestsRemaining": 4200,
+  "requestsResetUnix": 1774915200,
+  "inputTokensLimit": 400000,
+  "inputTokensRemaining": 360000,
+  "inputTokensResetUnix": 1774915200,
+  "outputTokensLimit": 80000,
+  "outputTokensRemaining": 72000,
+  "outputTokensResetUnix": 1774915200
+}

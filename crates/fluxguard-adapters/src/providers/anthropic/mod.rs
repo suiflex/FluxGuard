@@ -279,17 +279,11 @@ mod tests {
 
     #[test]
     fn anthropic_stats_normalizes_requests_and_token_windows() {
-        let stats = AnthropicRateLimitStats {
-            requests_limit: Some(5_000.0),
-            requests_remaining: Some(4_200.0),
-            requests_reset_unix: Some(1774915200),
-            input_tokens_limit: Some(400_000.0),
-            input_tokens_remaining: Some(360_000.0),
-            input_tokens_reset_unix: Some(1774915200),
-            output_tokens_limit: Some(80_000.0),
-            output_tokens_remaining: Some(72_000.0),
-            output_tokens_reset_unix: Some(1774915200),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: AnthropicRateLimitStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/anthropic/rate_limits_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = AnthropicAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 3);
