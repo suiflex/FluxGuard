@@ -12,9 +12,7 @@ const OBSERVED_VIA: &str = "xai_rate_limits";
 
 /// xAI (Grok) API rate limit adapter.
 #[derive(Clone, Debug)]
-pub struct XaiAdapter {
-    descriptor: SourceDescriptor,
-}
+pub struct XaiAdapter;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,9 +41,7 @@ fn descriptor() -> SourceDescriptor {
 
 impl XaiAdapter {
     pub fn new() -> Self {
-        Self {
-            descriptor: descriptor(),
-        }
+        Self
     }
 
     pub fn normalize(stats: XaiRateLimitStats) -> Result<BudgetSnapshot, SourceError> {
@@ -120,7 +116,7 @@ impl Default for XaiAdapter {
 #[async_trait]
 impl BudgetSource for XaiAdapter {
     fn descriptor(&self) -> SourceDescriptor {
-        self.descriptor.clone()
+        descriptor()
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
@@ -142,12 +138,10 @@ mod tests {
     #[test]
     fn xai_stats_normalizes_rps_and_tpm_limits() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: XaiRateLimitStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/xai/rate_limits_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = XaiAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/xai/rate_limits_basic.json"),
+            XaiAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 2);
 
         let rps = &snapshot.windows[0];
