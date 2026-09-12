@@ -232,6 +232,33 @@ For harnesses with standalone stdio configuration (e.g. OMP, Hermes, 9router), r
 fluxguard serve
 ```
 
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `fluxguard serve` | Serve MCP over stdio — the mode a client launches |
+| `fluxguard serve-http --listen 127.0.0.1:8080` | Serve MCP over HTTP |
+| `fluxguard daemon` | Run the source supervisor in the foreground |
+| `fluxguard status [--json]` | Current combined pressure |
+| `fluxguard advice <operation> [--importance …] [--json]` | Advice for one operation (alias: `fluxguard hook`) |
+| `fluxguard sources` | Registered sources and their state |
+| `fluxguard doctor` | Probe every configured source and say why one is unavailable |
+| `fluxguard config [check\|path] [--dry-run]` | Edit, validate, or locate the configuration |
+| `fluxguard install [--client …]` | Register FluxGuard with a harness |
+| `fluxguard update [--check] [--json]` | Check for and install a newer release |
+
+`<operation>` is one of `inspect_targeted`, `search_broad`, `edit_small`,
+`refactor_large`, `test_targeted`, `test_full`, `spawn_subagent`,
+`spawn_parallel_subagents`, `research_external`, `generate_artifacts`,
+`checkpoint`, `finalize`. Underscores, not hyphens: an unrecognized name is
+accepted as a custom operation whose cost is `unknown`, which weakens the advice
+rather than failing. `--importance` is `required`, `useful`, or `optional`
+(default `optional`).
+
+```bash
+fluxguard advice spawn_parallel_subagents --importance useful --json
+```
+
 ## MCP Tools & Resources
 
 FluxGuard keeps its public MCP tool surface small, stable, and machine-readable:
@@ -254,14 +281,28 @@ Detailed diagnostic data is provided through MCP resources:
 
 ## Documentation
 
-For architectural specifications and development details, consult:
+| Document | What it covers |
+| --- | --- |
+| [Vision](docs/00-VISION.md) | What FluxGuard is for, and what it refuses to become |
+| [Architecture](docs/01-ARCHITECTURE.md) | Layer boundaries and the crate map |
+| [Domain Model](docs/02-DOMAIN-MODEL.md) | `BudgetSnapshot`, windows, freshness, provenance |
+| [MCP Contract](docs/03-MCP-CONTRACT.md) | The three tools and their response shapes |
+| [Policy Engine](docs/04-POLICY-ENGINE.md) | How pressure becomes advice |
+| [Source Adapters](docs/05-SOURCE-ADAPTERS.md) | The adapter contract and its failure modes |
+| [Client Integrations](docs/06-CLIENT-INTEGRATIONS.md) | Per-harness wiring |
+| [Provider Matrix](docs/07-PROVIDER-MATRIX.md) | What each source can actually read today |
+| [Security & Privacy](docs/08-SECURITY-PRIVACY.md) | What is never logged or uploaded |
+| [Observability](docs/09-OBSERVABILITY.md) | Diagnostics and redaction |
+| [Testing](docs/10-TESTING.md) | What every adapter and policy change must cover |
+| [Roadmap](docs/11-ROADMAP.md) | Sequence of work |
+| [Codex Implementation Plan](docs/12-CODEX-IMPLEMENTATION-PLAN.md) | The first vertical slice, phase by phase |
+| [Non-Goals](docs/13-NON-GOALS.md) | Deliberate exclusions |
+| [Research Notes](docs/14-RESEARCH-NOTES.md) | Source investigation notes |
+| [ADRs](docs/adr/) | Decisions and their reasoning |
 
-1. [Architecture Overview](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/01-ARCHITECTURE.md)
-2. [Domain Model](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/02-DOMAIN-MODEL.md)
-3. [MCP Protocol Contract](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/03-MCP-CONTRACT.md)
-4. [Policy Engine](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/04-POLICY-ENGINE.md)
-5. [Source Adapters](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/05-SOURCE-ADAPTERS.md)
-6. [Codex Implementation Plan](file:///Users/telkom/Development/github/suiflex/FluxGuard/docs/12-CODEX-IMPLEMENTATION-PLAN.md)
+Contributing, including how to add a source: [CONTRIBUTING.md](CONTRIBUTING.md).
+Agent-facing rules for this repository: [CLAUDE.md](CLAUDE.md) (`AGENTS.md` is a
+symlink to it).
 
 ## License
 
