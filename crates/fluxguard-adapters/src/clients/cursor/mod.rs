@@ -12,9 +12,7 @@ const OBSERVED_VIA: &str = "cursor_telemetry";
 
 /// Cursor agent lifecycle and model pool telemetry adapter.
 #[derive(Clone, Debug)]
-pub struct CursorAdapter {
-    descriptor: SourceDescriptor,
-}
+pub struct CursorAdapter;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,9 +41,7 @@ fn descriptor() -> SourceDescriptor {
 
 impl CursorAdapter {
     pub fn new() -> Self {
-        Self {
-            descriptor: descriptor(),
-        }
+        Self
     }
 
     pub fn normalize(stats: CursorUsageStats) -> Result<BudgetSnapshot, SourceError> {
@@ -122,7 +118,7 @@ impl Default for CursorAdapter {
 #[async_trait]
 impl BudgetSource for CursorAdapter {
     fn descriptor(&self) -> SourceDescriptor {
-        self.descriptor.clone()
+        descriptor()
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
@@ -155,12 +151,10 @@ mod tests {
     #[test]
     fn cursor_stats_normalizes_fast_requests_window() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: CursorUsageStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/cursor/usage_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = CursorAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/cursor/usage_basic.json"),
+            CursorAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 3);
 
         let fast_window = &snapshot.windows[0];
