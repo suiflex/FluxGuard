@@ -34,6 +34,7 @@ pub enum ConfigError {
 pub struct Config {
     pub pressure: PressureSettings,
     pub clients: ClientsSettings,
+    pub providers: ProvidersSettings,
     pub sources: SourcesSettings,
 }
 
@@ -230,6 +231,71 @@ impl Config {
         if let Some(value) = read_env("FLUXGUARD_CLIENTS_OPENCODE_COMMAND") {
             self.clients.opencode.command = value;
         }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_COPILOT_ENABLED") {
+            self.clients.copilot.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_CLIENTS_COPILOT_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_COPILOT_COMMAND") {
+            self.clients.copilot.command = value;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CURSOR_ENABLED") {
+            self.clients.cursor.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_CLIENTS_CURSOR_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CLAUDE_CODE_ENABLED") {
+            self.clients.claude_code.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_CLIENTS_CLAUDE_CODE_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CLAUDE_CODE_COMMAND") {
+            self.clients.claude_code.command = value;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_ANTIGRAVITY_ENABLED") {
+            self.clients.antigravity.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_CLIENTS_ANTIGRAVITY_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_CLIENTS_ANTIGRAVITY_COMMAND") {
+            self.clients.antigravity.command = value;
+        }
+        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_OPENAI_ENABLED") {
+            self.providers.openai.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_PROVIDERS_OPENAI_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_ANTHROPIC_ENABLED") {
+            self.providers.anthropic.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_PROVIDERS_ANTHROPIC_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_XAI_ENABLED") {
+            self.providers.xai.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_PROVIDERS_XAI_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
+        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_ZAI_ENABLED") {
+            self.providers.zai.enabled =
+                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
+                    name: "FLUXGUARD_PROVIDERS_ZAI_ENABLED".into(),
+                    reason: "expected true or false".into(),
+                })?;
+        }
         Ok(())
     }
 }
@@ -271,6 +337,10 @@ impl PressureSettings {
 pub struct ClientsSettings {
     pub codex: CodexSettings,
     pub opencode: OpenCodeSettings,
+    pub copilot: CopilotSettings,
+    pub cursor: CursorSettings,
+    pub claude_code: ClaudeCodeSettings,
+    pub antigravity: AntigravitySettings,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -305,6 +375,75 @@ impl Default for OpenCodeSettings {
             command: "opencode".into(),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct CopilotSettings {
+    pub enabled: bool,
+    pub command: String,
+}
+
+impl Default for CopilotSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            command: "gh".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct CursorSettings {
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct ClaudeCodeSettings {
+    pub enabled: bool,
+    pub command: String,
+}
+
+impl Default for ClaudeCodeSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            command: "claude".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct AntigravitySettings {
+    pub enabled: bool,
+    pub command: String,
+}
+
+impl Default for AntigravitySettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            command: "agy".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct ProvidersSettings {
+    pub openai: ProviderSettings,
+    pub anthropic: ProviderSettings,
+    pub xai: ProviderSettings,
+    pub zai: ProviderSettings,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct ProviderSettings {
+    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -420,5 +559,23 @@ mod tests {
         );
         assert_eq!(snapshot.source.kind, SourceKind::UserConfigured);
         assert_eq!(snapshot.source.source_quality, SourceQuality::Manual);
+    }
+
+    #[test]
+    fn config_deserializes_clients_and_providers_with_defaults() {
+        let toml_str = r#"
+            [clients.copilot]
+            enabled = true
+            command = "gh"
+
+            [providers.openai]
+            enabled = true
+        "#;
+        let config: Config = toml::from_str(toml_str).expect("parse config");
+        assert!(config.clients.copilot.enabled);
+        assert_eq!(config.clients.copilot.command, "gh");
+        assert!(!config.clients.cursor.enabled);
+        assert!(config.providers.openai.enabled);
+        assert!(!config.providers.anthropic.enabled);
     }
 }

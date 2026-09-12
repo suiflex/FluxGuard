@@ -9,7 +9,15 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use fluxguard_adapters::clients::{codex::CodexAdapter, opencode::OpenCodeAdapter};
+use fluxguard_adapters::{
+    clients::{
+        antigravity::AntigravityAdapter, claude_code::ClaudeCodeAdapter, codex::CodexAdapter,
+        copilot::CopilotAdapter, cursor::CursorAdapter, opencode::OpenCodeAdapter,
+    },
+    providers::{
+        anthropic::AnthropicAdapter, openai::OpenAiAdapter, xai::XaiAdapter, zai::ZaiAdapter,
+    },
+};
 use fluxguard_core::{
     advise, assess_combined, estimate_operation_cost, CombinedSnapshot, OperationImportance,
     OperationKind, OperationProfile, PressureLevel,
@@ -563,12 +571,126 @@ async fn doctor(config: Config) -> Result<(), CliError> {
     } else {
         println!("  state: disabled");
     }
+
+    println!("client.copilot");
+    if config.clients.copilot.enabled {
+        let copilot = CopilotAdapter::with_default_timeout(config.clients.copilot.command);
+        match copilot.probe().await {
+            Ok(report) => {
+                println!("  binary: {}", probe_binary_name(&report.state));
+                println!("  state: {}", probe_state_name(&report.state));
+            }
+            Err(_) => {
+                println!("  binary: not found");
+                println!("  state: unavailable");
+                println!("  action: install GitHub CLI (gh) or set clients.copilot.command");
+            }
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
+    println!("client.cursor");
+    if config.clients.cursor.enabled {
+        let cursor = CursorAdapter::new();
+        match cursor.probe().await {
+            Ok(report) => {
+                println!("  state: {}", probe_state_name(&report.state));
+            }
+            Err(_) => {
+                println!("  state: unavailable");
+            }
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
     println!("client.claude_code");
-    println!("  state: unsupported");
-    println!("  action: use MCP/manual budgets; no stable official subscription quota surface");
+    if config.clients.claude_code.enabled {
+        let claude = ClaudeCodeAdapter::new(config.clients.claude_code.command);
+        match claude.probe().await {
+            Ok(report) => {
+                println!("  binary: {}", probe_binary_name(&report.state));
+                println!("  state: {}", probe_state_name(&report.state));
+            }
+            Err(_) => {
+                println!("  binary: not found");
+                println!("  state: unavailable");
+                println!("  action: install Claude Code CLI or set clients.claude_code.command");
+            }
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
     println!("client.antigravity");
-    println!("  state: unsupported");
-    println!("  action: use MCP/manual budgets; interactive quota UI is not parsed");
+    if config.clients.antigravity.enabled {
+        let agy = AntigravityAdapter::new(config.clients.antigravity.command);
+        let surfaces = agy.probe_surfaces().await;
+        match agy.probe().await {
+            Ok(report) => {
+                println!("  binary: {}", probe_binary_name(&report.state));
+                println!("  state: {}", probe_state_name(&report.state));
+                if !surfaces.is_empty() {
+                    println!("  surfaces: {}", surfaces.join(", "));
+                }
+            }
+            Err(_) => {
+                println!("  binary: not found");
+                println!("  state: unavailable");
+                println!(
+                    "  action: install Antigravity CLI (agy), Antigravity IDE, or set GEMINI_API_KEY"
+                );
+            }
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
+    println!("provider.openai");
+    if config.providers.openai.enabled {
+        let openai = OpenAiAdapter::new();
+        match openai.probe().await {
+            Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
+            Err(_) => println!("  state: unavailable"),
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
+    println!("provider.anthropic");
+    if config.providers.anthropic.enabled {
+        let anthropic = AnthropicAdapter::new();
+        match anthropic.probe().await {
+            Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
+            Err(_) => println!("  state: unavailable"),
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
+    println!("provider.xai");
+    if config.providers.xai.enabled {
+        let xai = XaiAdapter::new();
+        match xai.probe().await {
+            Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
+            Err(_) => println!("  state: unavailable"),
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
+    println!("provider.zai");
+    if config.providers.zai.enabled {
+        let zai = ZaiAdapter::new();
+        match zai.probe().await {
+            Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
+            Err(_) => println!("  state: unavailable"),
+        }
+    } else {
+        println!("  state: disabled");
+    }
+
     Ok(())
 }
 
@@ -586,6 +708,52 @@ fn build_registry(config: &Config) -> Result<SourceRegistry, CliError> {
             .register(Arc::new(OpenCodeAdapter::with_default_timeout(
                 config.clients.opencode.command.clone(),
             )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.copilot.enabled {
+        registry
+            .register(Arc::new(CopilotAdapter::with_default_timeout(
+                config.clients.copilot.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.cursor.enabled {
+        registry
+            .register(Arc::new(CursorAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.claude_code.enabled {
+        registry
+            .register(Arc::new(ClaudeCodeAdapter::new(
+                config.clients.claude_code.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.antigravity.enabled {
+        registry
+            .register(Arc::new(AntigravityAdapter::new(
+                config.clients.antigravity.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.openai.enabled {
+        registry
+            .register(Arc::new(OpenAiAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.anthropic.enabled {
+        registry
+            .register(Arc::new(AnthropicAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.xai.enabled {
+        registry
+            .register(Arc::new(XaiAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.zai.enabled {
+        registry
+            .register(Arc::new(ZaiAdapter::new()))
             .map_err(|_| CliError::Registration)?;
     }
     for snapshot in config.manual_snapshots()? {
