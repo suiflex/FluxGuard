@@ -1,14 +1,16 @@
-use ::time::{Duration as SignedDuration, OffsetDateTime};
+use ::time::OffsetDateTime;
 use async_trait::async_trait;
 use fluxguard_core::{
-    Applicability, Availability, BudgetSnapshot, BudgetWindow, DecimalValue, Freshness,
-    MetricDimension, Provenance, SnapshotWarning, SourceCapabilities, SourceDescriptor, SourceId,
-    SourceKind, SourceQuality, WindowId,
+    BudgetSnapshot, MetricDimension, SourceDescriptor, SourceKind, SourceQuality,
 };
-use fluxguard_runtime::{BudgetSource, ProbeReport, ProbeState, SourceError};
+use fluxguard_runtime::{BudgetSource, ProbeReport, SourceError};
 use serde::Deserialize;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+
+use crate::support::{self, WindowSpec};
+
+const OBSERVED_VIA: &str = "anthropic_rate_limit_headers";
 
 /// Anthropic API rate limit adapter.
 #[derive(Clone, Debug)]
@@ -39,197 +41,82 @@ pub struct AnthropicRateLimitStats {
     pub output_tokens_reset_unix: Option<i64>,
 }
 
+fn descriptor() -> SourceDescriptor {
+    support::descriptor(
+        "provider.anthropic",
+        SourceKind::Provider,
+        "Anthropic API",
+        SourceQuality::OfficialHeaders,
+        support::capabilities(true, false),
+    )
+}
+
 impl AnthropicAdapter {
     pub fn new() -> Self {
-        let id = SourceId::new("provider.anthropic").expect("static source id is valid");
         Self {
-            descriptor: SourceDescriptor {
-                id,
-                kind: SourceKind::Provider,
-                display_name: "Anthropic API".into(),
-                adapter_version: env!("CARGO_PKG_VERSION").into(),
-                source_quality: SourceQuality::OfficialHeaders,
-                capabilities: SourceCapabilities {
-                    supports_snapshot: true,
-                    supports_push_updates: false,
-                    supports_reset_time: true,
-                    supports_exact_remaining_percent: true,
-                    supports_model_scope: true,
-                    supports_cost: false,
-                },
-            },
+            descriptor: descriptor(),
         }
     }
 
     pub fn normalize(stats: AnthropicRateLimitStats) -> Result<BudgetSnapshot, SourceError> {
-        let source_id =
-            SourceId::new("provider.anthropic").map_err(|_| SourceError::InvalidPayload)?;
-        let descriptor = SourceDescriptor {
-            id: source_id.clone(),
-            kind: SourceKind::Provider,
-            display_name: "Anthropic API".into(),
-            adapter_version: env!("CARGO_PKG_VERSION").into(),
-            source_quality: SourceQuality::OfficialHeaders,
-            capabilities: SourceCapabilities {
-                supports_snapshot: true,
-                supports_push_updates: false,
-                supports_reset_time: true,
-                supports_exact_remaining_percent: true,
-                supports_model_scope: true,
-                supports_cost: false,
-            },
-        };
-
+        let source = descriptor();
         let now = OffsetDateTime::now_utc();
         let mut windows = Vec::new();
-        let mut warnings = Vec::new();
 
-        if let (Some(rem), Some(limit)) = (stats.requests_remaining, stats.requests_limit) {
-            if let (Ok(rem_dec), Ok(limit_dec)) =
-                (DecimalValue::try_new(rem), DecimalValue::try_new(limit))
-            {
-                let remaining_percent = if limit > 0.0 {
-                    Some((rem / limit) * 100.0)
-                } else {
-                    None
-                };
-
-                let resets_at = stats
-                    .requests_reset_unix
-                    .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok());
-
-                let window_id = WindowId::new("provider.anthropic.requests")
-                    .map_err(|_| SourceError::InvalidPayload)?;
-
-                windows.push(BudgetWindow {
-                    id: window_id,
-                    label: Some("Requests Limit".into()),
-                    dimension: MetricDimension::Requests,
-                    used: DecimalValue::try_new((limit - rem).max(0.0)).ok(),
-                    limit: Some(limit_dec),
-                    remaining: Some(rem_dec),
-                    used_percent: remaining_percent.map(|r| (100.0 - r).clamp(0.0, 100.0)),
-                    remaining_percent,
-                    window_duration_seconds: Some(60),
-                    resets_at,
-                    fresh_until: Some(now + SignedDuration::seconds(30)),
-                    hard_blocked: rem <= 0.0,
-                    applicability: Applicability::Applicable,
-                    observed_at: now,
-                    freshness: Freshness::Fresh,
-                    provenance: Provenance {
-                        source_id: source_id.clone(),
-                        source_quality: SourceQuality::OfficialHeaders,
-                        observed_via: Some("anthropic_rate_limit_headers".into()),
-                    },
-                });
+        let per_minute = [
+            (
+                "provider.anthropic.requests",
+                "Requests Limit",
+                MetricDimension::Requests,
+                stats.requests_remaining,
+                stats.requests_limit,
+                stats.requests_reset_unix,
+            ),
+            (
+                "provider.anthropic.input_tokens",
+                "Input Tokens per Minute",
+                MetricDimension::InputTokens,
+                stats.input_tokens_remaining,
+                stats.input_tokens_limit,
+                stats.input_tokens_reset_unix,
+            ),
+            (
+                "provider.anthropic.output_tokens",
+                "Output Tokens per Minute",
+                MetricDimension::OutputTokens,
+                stats.output_tokens_remaining,
+                stats.output_tokens_limit,
+                stats.output_tokens_reset_unix,
+            ),
+        ];
+        for (id, label, dimension, remaining, limit, reset_unix) in per_minute {
+            if remaining.is_none() || limit.is_none() {
+                continue;
             }
-        }
-
-        if let (Some(rem), Some(limit)) = (stats.input_tokens_remaining, stats.input_tokens_limit) {
-            if let (Ok(rem_dec), Ok(limit_dec)) =
-                (DecimalValue::try_new(rem), DecimalValue::try_new(limit))
-            {
-                let remaining_percent = if limit > 0.0 {
-                    Some((rem / limit) * 100.0)
-                } else {
-                    None
-                };
-
-                let resets_at = stats
-                    .input_tokens_reset_unix
-                    .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok());
-
-                let window_id = WindowId::new("provider.anthropic.input_tokens")
-                    .map_err(|_| SourceError::InvalidPayload)?;
-
-                windows.push(BudgetWindow {
-                    id: window_id,
-                    label: Some("Input Tokens per Minute".into()),
-                    dimension: MetricDimension::InputTokens,
-                    used: DecimalValue::try_new((limit - rem).max(0.0)).ok(),
-                    limit: Some(limit_dec),
-                    remaining: Some(rem_dec),
-                    used_percent: remaining_percent.map(|r| (100.0 - r).clamp(0.0, 100.0)),
-                    remaining_percent,
+            support::push_window(
+                &mut windows,
+                &source,
+                OBSERVED_VIA,
+                now,
+                WindowSpec {
+                    remaining,
+                    limit,
                     window_duration_seconds: Some(60),
-                    resets_at,
-                    fresh_until: Some(now + SignedDuration::seconds(30)),
-                    hard_blocked: rem <= 0.0,
-                    applicability: Applicability::Applicable,
-                    observed_at: now,
-                    freshness: Freshness::Fresh,
-                    provenance: Provenance {
-                        source_id: source_id.clone(),
-                        source_quality: SourceQuality::OfficialHeaders,
-                        observed_via: Some("anthropic_rate_limit_headers".into()),
-                    },
-                });
-            }
+                    resets_at: reset_unix
+                        .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok()),
+                    ttl_seconds: 30,
+                    ..WindowSpec::new(id, label, dimension)
+                },
+            )?;
         }
 
-        if let (Some(rem), Some(limit)) = (stats.output_tokens_remaining, stats.output_tokens_limit)
-        {
-            if let (Ok(rem_dec), Ok(limit_dec)) =
-                (DecimalValue::try_new(rem), DecimalValue::try_new(limit))
-            {
-                let remaining_percent = if limit > 0.0 {
-                    Some((rem / limit) * 100.0)
-                } else {
-                    None
-                };
-
-                let resets_at = stats
-                    .output_tokens_reset_unix
-                    .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok());
-
-                let window_id = WindowId::new("provider.anthropic.output_tokens")
-                    .map_err(|_| SourceError::InvalidPayload)?;
-
-                windows.push(BudgetWindow {
-                    id: window_id,
-                    label: Some("Output Tokens per Minute".into()),
-                    dimension: MetricDimension::OutputTokens,
-                    used: DecimalValue::try_new((limit - rem).max(0.0)).ok(),
-                    limit: Some(limit_dec),
-                    remaining: Some(rem_dec),
-                    used_percent: remaining_percent.map(|r| (100.0 - r).clamp(0.0, 100.0)),
-                    remaining_percent,
-                    window_duration_seconds: Some(60),
-                    resets_at,
-                    fresh_until: Some(now + SignedDuration::seconds(30)),
-                    hard_blocked: rem <= 0.0,
-                    applicability: Applicability::Applicable,
-                    observed_at: now,
-                    freshness: Freshness::Fresh,
-                    provenance: Provenance {
-                        source_id,
-                        source_quality: SourceQuality::OfficialHeaders,
-                        observed_via: Some("anthropic_rate_limit_headers".into()),
-                    },
-                });
-            }
-        }
-
-        if windows.is_empty() {
-            warnings.push(SnapshotWarning {
-                code: "anthropic_stats_missing".into(),
-                message: "No Anthropic rate limit headers available".into(),
-            });
-        }
-
-        Ok(BudgetSnapshot {
-            source: descriptor,
-            account_scope: None,
-            availability: if windows.is_empty() {
-                Availability::Unknown
-            } else {
-                Availability::Allowed
-            },
+        Ok(support::snapshot(
+            source,
+            now,
             windows,
-            observed_at: now,
-            warnings,
-        })
+            "anthropic_stats_missing",
+            "No Anthropic rate limit headers available",
+        ))
     }
 }
 
@@ -246,15 +133,7 @@ impl BudgetSource for AnthropicAdapter {
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
-        if std::env::var_os("ANTHROPIC_API_KEY").is_some() {
-            Ok(ProbeReport {
-                state: ProbeState::Ready,
-            })
-        } else {
-            Ok(ProbeReport {
-                state: ProbeState::NotAuthenticated,
-            })
-        }
+        Ok(support::probe_env_keys(&["ANTHROPIC_API_KEY"]))
     }
 
     // ponytail: no verified machine-readable quota surface yet, so report
@@ -291,6 +170,7 @@ mod tests {
         let req_window = &snapshot.windows[0];
         assert_eq!(req_window.dimension, MetricDimension::Requests);
         assert_eq!(req_window.remaining_percent, Some(84.0));
+        assert!(req_window.resets_at.is_some());
 
         let in_tok = &snapshot.windows[1];
         assert_eq!(in_tok.dimension, MetricDimension::InputTokens);
@@ -300,17 +180,11 @@ mod tests {
         assert_eq!(out_tok.dimension, MetricDimension::OutputTokens);
         assert_eq!(out_tok.remaining_percent, Some(90.0));
     }
-    #[test]
-    fn empty_stats_stay_unknown() {
-        let snapshot =
-            AnthropicAdapter::normalize(AnthropicRateLimitStats::default()).expect("normalize");
-        assert!(snapshot.windows.is_empty());
-        assert!(matches!(snapshot.availability, Availability::Unknown));
-    }
 
     #[tokio::test]
-    async fn refresh_reports_unsupported_until_a_real_surface_exists() {
-        let result = AnthropicAdapter::new().refresh().await;
-        assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
+    async fn detection_only_contract() {
+        let empty =
+            AnthropicAdapter::normalize(AnthropicRateLimitStats::default()).expect("normalize");
+        support::assert_detection_only(&AnthropicAdapter::new(), empty).await;
     }
 }
