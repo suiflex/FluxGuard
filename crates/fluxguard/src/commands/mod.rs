@@ -27,6 +27,8 @@ use fluxguard_runtime::{BudgetSource, ManualSource, SourceRegistry, SourceStateK
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+mod config_edit;
+
 use crate::config::{Config, ConfigError};
 use crate::theme;
 
@@ -44,6 +46,8 @@ pub enum CliError {
     Server(String),
     #[error("install requires a TTY when --client is omitted")]
     InstallRequiresTty,
+    #[error("editing the configuration requires a TTY")]
+    ConfigRequiresTty,
     #[error("install cancelled")]
     InstallCancelled,
     #[error("could not determine the latest release")]
@@ -112,9 +116,14 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Inspect or edit the configuration; without a subcommand this opens the
+    /// interactive editor.
     Config {
         #[command(subcommand)]
-        command: ConfigCommand,
+        command: Option<ConfigCommand>,
+        /// Show the configuration that would be written, and write nothing
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Update FluxGuard to the latest release, or only check for one.
     ///
@@ -131,7 +140,10 @@ pub enum Command {
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
+    /// Validate the configuration and the environment overrides
     Check,
+    /// Print the configuration file this machine reads
+    Path,
 }
 
 pub async fn run(cli: Cli) -> Result<(), CliError> {
@@ -161,13 +173,36 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
             importance,
             json,
         } => advice(config, operation, importance, json).await,
-        Command::Config {
-            command: ConfigCommand::Check,
-        } => {
+        Command::Config { command, dry_run } => {
+            // `--config` names the file to act on; otherwise it is this
+            // machine's own.
+            let path = cli.config.unwrap_or_else(Config::path);
+            configure(config, command, &path, dry_run).await
+        }
+        Command::Update { .. } => unreachable!("handled before the configuration is loaded"),
+    }
+}
+
+async fn configure(
+    config: Config,
+    command: Option<ConfigCommand>,
+    path: &Path,
+    dry_run: bool,
+) -> Result<(), CliError> {
+    match command {
+        // Loading already validated it, including the environment overrides.
+        Some(ConfigCommand::Check) => {
             println!("configuration valid");
             Ok(())
         }
-        Command::Update { .. } => unreachable!("handled before the configuration is loaded"),
+        Some(ConfigCommand::Path) => {
+            println!("{}", path.display());
+            if !path.exists() {
+                println!("(no file yet; defaults are in use)");
+            }
+            Ok(())
+        }
+        None => config_edit::run(config, path, dry_run).await,
     }
 }
 
