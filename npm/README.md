@@ -137,6 +137,21 @@ Or from a local workspace checkout:
 cargo install --path crates/fluxguard
 ```
 
+### Staying Up To Date
+
+```sh
+fluxguard update          # install the latest release when one exists
+fluxguard update --check  # report only, install nothing
+fluxguard update --json   # machine-readable result
+```
+
+The latest release is read from the repository's tags with `git ls-remote`, so no
+API token is involved, and the answer is cached for a day in
+`~/.fluxguard/update-check.json`. Installing reuses the platform install script
+above, so the binary lands where it originally did. When the check cannot reach
+the remote it reports `unknown` and exits non-zero rather than claiming the
+current version is latest.
+
 ## Connect to a Client
 
 FluxGuard provides an interactive installer that writes merge-safe MCP configuration entries with automatic `.bak` backups:
@@ -144,6 +159,10 @@ FluxGuard provides an interactive installer that writes merge-safe MCP configura
 ```bash
 fluxguard install
 ```
+
+Run without `--client` on a terminal and it shows a menu of supported harnesses,
+with the ones already configured on this machine marked and pre-selected. Without
+a terminal it exits rather than guessing a target.
 
 Or configure non-interactively for specific harnesses:
 
