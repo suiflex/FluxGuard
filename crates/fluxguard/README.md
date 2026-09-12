@@ -146,11 +146,21 @@ fluxguard update --json   # machine-readable result
 ```
 
 The latest release is read from the repository's tags with `git ls-remote`, so no
-API token is involved, and the answer is cached for a day in
-`~/.fluxguard/update-check.json`. Installing reuses the platform install script
-above, so the binary lands where it originally did. When the check cannot reach
-the remote it reports `unknown` and exits non-zero rather than claiming the
-current version is latest.
+API token is involved, and the answer is cached for a day in the platform cache
+directory:
+
+| OS | Cache location |
+|---|---|
+| macOS | `~/Library/Caches/FluxGuard.FluxGuard/update-check.json` |
+| Linux | `$XDG_CACHE_HOME/fluxguard/` or `~/.cache/fluxguard/` |
+| Windows | `%LOCALAPPDATA%\FluxGuard\FluxGuard\cache\` |
+
+A cache is disposable, so it stays out of the configuration directory — nothing
+here is backed up or synced between machines — and falls back to a directory
+under the system temp when the platform reports no home. Installing reuses the
+platform install script above, so the binary lands where it originally did. When
+the check cannot reach the remote it reports `unknown` and exits non-zero rather
+than claiming the current version is latest.
 
 ## Configure
 
