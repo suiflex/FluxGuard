@@ -27,7 +27,7 @@ jobs:
           ref: develop
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-      - uses: googleapis/release-please-action@798765259009fa26591fa51138541e2b611e9766 # v5
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
