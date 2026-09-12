@@ -116,17 +116,17 @@ allow / advise / block
 
 Blocking behavior must be opt-in.
 
-## Google Antigravity
+## Google Antigravity & Gemini Ecosystem
 
-Antigravity supports MCP across its products.
+Antigravity spans multiple developer surfaces across Google's AI developer platform:
 
-Its CLI exposes `/usage` or `/quota` interactively.
+1. **Antigravity CLI (`agy`)**: Lightweight terminal interface for agent interaction, slash commands, and background tasks. Configured in `~/.gemini/antigravity-cli/settings.json`.
+2. **Antigravity IDE**: Standalone AI-first IDE built on a VS Code fork with inline code lenses, tab completions, and `.agents/` workspace customizations.
+3. **Antigravity 2.0 Desktop App**: Standalone Electron application for parallel agent orchestration, auxiliary panes, and scheduled tasks. Uses `~/.gemini/antigravity/mcp_config.json`.
+4. **Gemini CLI (`gemini`)**: Developer CLI for direct Gemini interactions, configured in `~/.gemini/`.
+5. **Google & Gemini Credentials**: Supports `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, Vertex AI credentials, and Google OAuth profiles in `~/.gemini/google_accounts.json`.
 
-The first integration should use MCP for advice.
-
-Do not parse an interactive TUI unless Google publishes a stable machine-readable mode or SDK endpoint.
-
-Antigravity also supports project/global skills and rules. A future skill can instruct the agent when to consult resource pressure.
+FluxGuard automatically detects these surfaces during `fluxguard doctor` and probes quota windows (5-hour and weekly quotas, plus model-level rate limits). Advisory advice is consumed via local MCP stdio or skill/hook workflows without scraping interactive TUIs.
 
 ## GitHub Copilot
 

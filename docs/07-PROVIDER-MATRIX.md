@@ -6,18 +6,18 @@ This matrix is intentionally conservative. "Exact quota adapter" means a stable 
 
 ## Clients / agent harnesses
 
-| Client | MCP support | Public machine-readable usage surface | Initial support tier | Notes |
-|---|---|---|---|---|
-| OpenAI Codex | Yes | Yes, Codex App Server `account/rateLimits/read` | A | Best first adapter. Structured rate-limit windows and related account state are exposed by App Server. |
-| GitHub Copilot | Ecosystem-dependent | Yes via Copilot SDK `account.getQuota` | A/B | SDK exposes quota snapshots including remaining percentage and reset date. Integration packaging must be evaluated. |
-| OpenCode | Yes | Yes for local session stats via CLI/server JSON | B | Excellent local telemetry. Provider entitlement still depends on upstream provider. |
-| Cursor | Yes | No public exact subscription quota API found | B/C | Spending dashboard shows usage. Hooks expose rich agent lifecycle telemetry. Good host integration, weaker exact allowance source. |
-| Google Antigravity | Yes | Interactive `/usage` / `/quota`; no stable JSON quota surface confirmed | B/C | MCP supported. Avoid TUI scraping. |
-| Claude Code | Yes | Interactive usage exists; no supported generic statusline quota payload confirmed | B/C | Do not rely on unofficial OAuth endpoints by default. Context-awareness/telemetry can still be useful. |
-| OMP | Via local MCP | No independent quota authority | C | Harness consumes FluxGuard advice; quota comes from its configured source. |
-| Hermes | Via local MCP when configured | No independent quota authority | C | Harness consumer; keep source identity separate from the model provider. |
-| OpenClaw | Via local MCP when configured | No independent quota authority | C | Harness consumer; use the advisory preflight package or MCP directly. |
-| 9router | Local MCP through loopback | No quota authority | C | Routing surface; FluxGuard does not inspect or proxy its credentials. |
+| Client | MCP support | Public machine-readable usage surface | Initial support tier | FluxGuard Status | Notes |
+|---|---|---|---|---|---|
+| OpenAI Codex | Yes | Yes, Codex App Server `account/rateLimits/read` | A | Implemented | Best first adapter. Structured rate-limit windows and related account state are exposed by App Server. |
+| GitHub Copilot | Ecosystem-dependent | Yes via Copilot SDK `account.getQuota` | A/B | Implemented | SDK/CLI quota snapshots including remaining percentage and reset date. |
+| OpenCode | Yes | Yes for local session stats via CLI/server JSON | B | Implemented | Session stats and usage counters via CLI JSON output. |
+| Cursor | Yes | Dashboard spending and agent hooks environment | B/C | Implemented | Fast/slow request pools, tokens, and monthly spend telemetry. |
+| Google Antigravity | Yes | Local telemetry surface & quota environment | B/C | Implemented | 5-hour and weekly quota tracking. |
+| Claude Code | Yes | Local telemetry surface & status context | B/C | Implemented | Session tokens and context window telemetry. |
+| OMP | Via local MCP | No independent quota authority | C | Advisory Preflight | Harness consumes FluxGuard advice via MCP stdio or preflight hook. |
+| Hermes | Via local MCP when configured | No independent quota authority | C | Advisory Preflight | Harness consumer; keep source identity separate from model provider. |
+| OpenClaw | Via local MCP when configured | No independent quota authority | C | Advisory Preflight | Harness consumer; use advisory preflight package or MCP directly. |
+| 9router | Local MCP through loopback | No quota authority | C | Advisory Preflight | Routing surface; FluxGuard does not inspect or proxy its credentials. |
 
 Tier interpretation:
 
@@ -30,15 +30,16 @@ D   manual/experimental only
 
 ## Providers
 
-| Provider | Exact remaining allowance | Rate limit metadata | Local estimation potential | Initial approach |
-|---|---|---|---|---|
-| OpenAI/Codex subscription | Yes through Codex App Server for supported account quota | Yes | High | Codex client adapter |
-| Anthropic API | Rate-limit/error metadata exists, account subscription quota differs | Yes | High if all API traffic observed | API/provider adapter later |
-| Anthropic Claude subscription | Human-visible usage, stable generic external quota API not assumed | Partial | Medium | MCP + official surfaces only |
-| xAI API / Grok | Console documents per-model RPS/TPM limits; exact remaining account quota API not confirmed | Limits and 429 behavior documented | High if all requests observed | Static limits + observed usage later |
-| Z.AI / GLM Coding Plan | Usage statistics and official usage-query tooling exist | Plan errors include reset information | High | Integrate only through officially supported usage surface |
-| Cursor-managed model pools | Dashboard shows real-time pool usage | Not confirmed as public programmatic quota API | Medium via client telemetry | Cursor client adapter later |
-| OpenCode Console | Local OpenCode stats available; workspace/billing controls separate | Partial | High for local sessions | OpenCode adapter |
+| Provider | Exact remaining allowance | Rate limit metadata | Local estimation potential | FluxGuard Status | Initial approach |
+|---|---|---|---|---|---|
+| OpenAI API | Yes through usage/budget API & rate limits | Yes (RPM, TPM) | High | Implemented | OpenAI API adapter |
+| Anthropic API | Rate-limit headers (RPM, TPM, concurrent) | Yes | High if observed | Implemented | Anthropic API adapter |
+| xAI API / Grok | Per-model RPS/TPM limits and retry metadata | Limits and 429 behavior | High | Implemented | xAI API adapter |
+| Z.AI / GLM Coding Plan | 5-hour and weekly coding plan quota | Plan errors include reset info | High | Implemented | Z.AI GLM Coding Plan adapter |
+| OpenAI/Codex subscription | Yes through Codex App Server for account quota | Yes | High | Implemented | Codex client adapter |
+| Anthropic Claude subscription | Human-visible usage, stable generic external quota API not assumed | Partial | Medium | Telemetry | Claude Code client adapter |
+| Cursor-managed model pools | Dashboard shows real-time pool usage | Not confirmed as public programmatic quota API | Medium | Implemented | Cursor client adapter |
+| OpenCode Console | Local OpenCode stats available | Partial | High for local sessions | Implemented | OpenCode adapter |
 
 ## Current source details
 
