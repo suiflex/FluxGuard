@@ -207,9 +207,11 @@ async fn configure(
 }
 
 fn update(check_only: bool, json: bool) -> Result<(), CliError> {
-    let home = PathBuf::from(std::env::var_os("HOME").ok_or(CliError::InvalidClientConfig)?);
+    // The platform decides where a disposable file goes; reading HOME directly
+    // would miss it on Windows, where the profile comes from a known folder.
+    let cache_dir = Config::cache_dir();
     let current = crate::update::current_version();
-    let Some(check) = crate::update::check_for_update(&home, true) else {
+    let Some(check) = crate::update::check_for_update(&cache_dir, true) else {
         // The remote could not be reached and nothing was cached: unknown, not
         // "up to date".
         if json {

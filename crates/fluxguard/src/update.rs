@@ -15,7 +15,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 const REPOSITORY_URL: &str = "https://github.com/suiflex/FluxGuard";
-const CACHE_RELATIVE: &str = ".fluxguard/update-check.json";
+/// Named inside the platform cache directory the caller supplies, so the answer
+/// lands where a throwaway file belongs: excluded from backups on macOS,
+/// sweepable on Linux, and outside the roaming profile on Windows.
+const CACHE_FILE: &str = "update-check.json";
 const THROTTLE_SECONDS: u64 = 86_400;
 
 #[cfg(windows)]
@@ -45,19 +48,19 @@ pub struct UpdateCheck {
 /// Query whether a newer release exists, consulting the remote when the cache
 /// is stale or `force` is set. `None` means the remote could not be reached and
 /// nothing was cached earlier — an unknown answer, never "up to date".
-pub fn check_for_update(home: &Path, force: bool) -> Option<UpdateCheck> {
-    check_for_update_for(home, force, current_version())
+pub fn check_for_update(cache_dir: &Path, force: bool) -> Option<UpdateCheck> {
+    check_for_update_for(cache_dir, force, current_version())
 }
 
 pub fn check_for_update_for(
-    home: &Path,
+    cache_dir: &Path,
     force: bool,
     current_version: &str,
 ) -> Option<UpdateCheck> {
-    if force || is_stale(home) {
+    if force || is_stale(cache_dir) {
         if let Some(latest) = fetch_latest_version() {
             write_cache(
-                home,
+                cache_dir,
                 &UpdateCache {
                     checked_at: now_seconds(),
                     latest,
@@ -65,7 +68,7 @@ pub fn check_for_update_for(
             );
         }
     }
-    let latest = read_cache(home)?.latest;
+    let latest = read_cache(cache_dir)?.latest;
     let update_available = match (parse_version(&latest), parse_version(current_version)) {
         (Some(latest_version), Some(current)) => latest_version > current,
         _ => false,
@@ -146,17 +149,17 @@ fn parse_version(value: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
-fn cache_path(home: &Path) -> PathBuf {
-    home.join(CACHE_RELATIVE)
+fn cache_path(cache_dir: &Path) -> PathBuf {
+    cache_dir.join(CACHE_FILE)
 }
 
-fn read_cache(home: &Path) -> Option<UpdateCache> {
-    let contents = fs::read_to_string(cache_path(home)).ok()?;
+fn read_cache(cache_dir: &Path) -> Option<UpdateCache> {
+    let contents = fs::read_to_string(cache_path(cache_dir)).ok()?;
     serde_json::from_str(&contents).ok()
 }
 
-fn write_cache(home: &Path, cache: &UpdateCache) {
-    let path = cache_path(home);
+fn write_cache(cache_dir: &Path, cache: &UpdateCache) {
+    let path = cache_path(cache_dir);
     if let Some(parent) = path.parent() {
         if fs::create_dir_all(parent).is_err() {
             return;
@@ -167,8 +170,8 @@ fn write_cache(home: &Path, cache: &UpdateCache) {
     }
 }
 
-fn is_stale(home: &Path) -> bool {
-    match read_cache(home) {
+fn is_stale(cache_dir: &Path) -> bool {
+    match read_cache(cache_dir) {
         Some(cache) => now_seconds().saturating_sub(cache.checked_at) >= THROTTLE_SECONDS,
         None => true,
     }
@@ -185,10 +188,11 @@ fn now_seconds() -> u64 {
 mod tests {
     use super::*;
 
-    fn temp_home(name: &str) -> PathBuf {
-        let home = std::env::temp_dir().join(format!("fluxguard-update-{name}-{}", now_seconds()));
-        fs::create_dir_all(&home).expect("create test home");
-        home
+    fn temp_cache_dir(name: &str) -> PathBuf {
+        let directory =
+            std::env::temp_dir().join(format!("fluxguard-update-{name}-{}", now_seconds()));
+        fs::create_dir_all(&directory).expect("create test cache dir");
+        directory
     }
 
     const LISTING: &str = "\
@@ -217,59 +221,59 @@ dddd\trefs/tags/nightly
 
     #[test]
     fn cached_answer_decides_whether_an_update_is_available() {
-        let home = temp_home("cached");
+        let cache = temp_cache_dir("cached");
         write_cache(
-            &home,
+            &cache,
             &UpdateCache {
                 checked_at: now_seconds(),
                 latest: "9.9.9".into(),
             },
         );
 
-        let check = check_for_update_for(&home, false, "0.1.3").expect("cached check");
+        let check = check_for_update_for(&cache, false, "0.1.3").expect("cached check");
         assert_eq!(check.current, "0.1.3");
         assert_eq!(check.latest, "9.9.9");
         assert!(check.update_available);
 
-        let check = check_for_update_for(&home, false, "9.9.9").expect("cached check");
+        let check = check_for_update_for(&cache, false, "9.9.9").expect("cached check");
         assert!(!check.update_available);
 
-        let _ = fs::remove_dir_all(home);
+        let _ = fs::remove_dir_all(cache);
     }
 
     #[test]
     fn an_unreadable_cache_is_no_answer_at_all() {
         // A truncated or hand-edited cache must read as "unknown" so the caller
         // reports that rather than treating the current version as latest.
-        let home = temp_home("corrupt");
-        let path = cache_path(&home);
+        let cache = temp_cache_dir("corrupt");
+        let path = cache_path(&cache);
         fs::create_dir_all(path.parent().expect("cache parent")).expect("create cache dir");
         fs::write(&path, "{ not json").expect("write cache");
-        assert!(read_cache(&home).is_none());
-        assert!(is_stale(&home));
-        let _ = fs::remove_dir_all(home);
+        assert!(read_cache(&cache).is_none());
+        assert!(is_stale(&cache));
+        let _ = fs::remove_dir_all(cache);
     }
 
     #[test]
     fn a_fresh_cache_is_not_stale() {
-        let home = temp_home("stale");
-        assert!(is_stale(&home), "absent cache is stale");
+        let cache = temp_cache_dir("stale");
+        assert!(is_stale(&cache), "absent cache is stale");
         write_cache(
-            &home,
+            &cache,
             &UpdateCache {
                 checked_at: now_seconds(),
                 latest: "0.1.3".into(),
             },
         );
-        assert!(!is_stale(&home));
+        assert!(!is_stale(&cache));
         write_cache(
-            &home,
+            &cache,
             &UpdateCache {
                 checked_at: now_seconds().saturating_sub(THROTTLE_SECONDS),
                 latest: "0.1.3".into(),
             },
         );
-        assert!(is_stale(&home));
-        let _ = fs::remove_dir_all(home);
+        assert!(is_stale(&cache));
+        let _ = fs::remove_dir_all(cache);
     }
 }

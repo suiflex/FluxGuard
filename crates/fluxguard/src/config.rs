@@ -38,11 +38,35 @@ pub struct Config {
     pub sources: SourcesSettings,
 }
 
+fn fallback_cache_dir() -> PathBuf {
+    std::env::temp_dir().join("fluxguard")
+}
+
+/// The application's own directories. "Project" here means FluxGuard itself,
+/// not the repository it is run from: the paths are per-user and identical
+/// whatever the working directory.
+fn project_dirs() -> Option<ProjectDirs> {
+    ProjectDirs::from("", "FluxGuard", "FluxGuard")
+}
+
 impl Config {
     pub fn path() -> PathBuf {
-        ProjectDirs::from("", "FluxGuard", "FluxGuard")
+        project_dirs()
             .map(|dirs| dirs.config_dir().join("config.toml"))
             .unwrap_or_else(|| PathBuf::from("config.toml"))
+    }
+
+    /// Where derived, disposable files belong: excluded from Time Machine on
+    /// macOS, sweepable under `~/.cache` on Linux, and in the local rather than
+    /// the roaming profile on Windows.
+    ///
+    /// Falls back to a directory under the system temp when the platform
+    /// reports no home. Losing this cache only costs one extra lookup, so a
+    /// headless or sandboxed environment should not fail over it.
+    pub fn cache_dir() -> PathBuf {
+        project_dirs()
+            .map(|dirs| dirs.cache_dir().to_path_buf())
+            .unwrap_or_else(fallback_cache_dir)
     }
 
     pub fn load(path: Option<&Path>) -> Result<Self, ConfigError> {
@@ -568,6 +592,32 @@ mod tests {
         );
         assert_eq!(snapshot.source.kind, SourceKind::UserConfigured);
         assert_eq!(snapshot.source.source_quality, SourceQuality::Manual);
+    }
+
+    #[test]
+    fn cache_directory_is_absolute_and_falls_back_to_temp() {
+        // Always somewhere writable: the platform cache when there is a home,
+        // a temp directory when there is not.
+        let resolved = Config::cache_dir();
+        assert!(resolved.is_absolute(), "{}", resolved.display());
+
+        let fallback = fallback_cache_dir();
+        assert!(fallback.starts_with(std::env::temp_dir()));
+        assert_eq!(
+            fallback.file_name().and_then(|name| name.to_str()),
+            Some("fluxguard")
+        );
+    }
+
+    #[test]
+    fn the_cache_never_lands_inside_the_config_directory() {
+        // A disposable file in the config directory would be backed up on macOS
+        // and synced across machines on Windows.
+        let cache = Config::cache_dir();
+        let config = Config::path();
+        let config_dir = config.parent().expect("config has a parent");
+        assert_ne!(cache, config_dir);
+        assert!(!cache.starts_with(config_dir), "{}", cache.display());
     }
 
     #[test]
