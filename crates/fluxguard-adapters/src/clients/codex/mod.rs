@@ -656,7 +656,7 @@ mod tests {
 
         use fluxguard_runtime::{SourceRegistry, SourceStateKind};
 
-        let root = crate::support::test_dir("codex");
+        let root = crate::test_support::test_dir("codex");
         let script_path = root.join("codex");
         let counter_path = root.join("starts");
         let counter_line = format!("COUNT_FILE={}", counter_path.display());
@@ -674,7 +674,7 @@ mod tests {
             "sleep 10",
         ]
         .join("\n");
-        crate::support::write_executable(&script_path, &script);
+        crate::test_support::write_executable(&script_path, &script);
 
         let adapter = Arc::new(CodexAdapter::new(
             script_path.to_string_lossy().into_owned(),

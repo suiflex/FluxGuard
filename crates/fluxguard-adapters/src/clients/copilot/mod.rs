@@ -555,7 +555,7 @@ mod tests {
         /// Writes a shell script that answers with the given JSON-RPC bodies, in order,
         /// using Content-Length framing, then lingers until killed.
         fn script(replies: &[&str]) -> (std::path::PathBuf, std::path::PathBuf) {
-            let root = crate::support::test_dir("copilot");
+            let root = crate::test_support::test_dir("copilot");
             let path = root.join("copilot");
             let mut lines = vec![
                 "#!/bin/sh".to_string(),
@@ -567,7 +567,7 @@ mod tests {
                 lines.push(format!("reply '{reply}'"));
             }
             lines.push("sleep 10".to_string());
-            crate::support::write_executable(&path, &lines.join("\n"));
+            crate::test_support::write_executable(&path, &lines.join("\n"));
             (root, path)
         }
 
