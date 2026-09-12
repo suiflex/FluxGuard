@@ -12,9 +12,7 @@ const OBSERVED_VIA: &str = "zai_coding_plan";
 
 /// Z.AI GLM Coding Plan quota adapter.
 #[derive(Clone, Debug)]
-pub struct ZaiAdapter {
-    descriptor: SourceDescriptor,
-}
+pub struct ZaiAdapter;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,9 +43,7 @@ fn descriptor() -> SourceDescriptor {
 
 impl ZaiAdapter {
     pub fn new() -> Self {
-        Self {
-            descriptor: descriptor(),
-        }
+        Self
     }
 
     pub fn normalize(stats: ZaiCodingPlanStats) -> Result<BudgetSnapshot, SourceError> {
@@ -112,7 +108,7 @@ impl Default for ZaiAdapter {
 #[async_trait]
 impl BudgetSource for ZaiAdapter {
     fn descriptor(&self) -> SourceDescriptor {
-        self.descriptor.clone()
+        descriptor()
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
@@ -134,12 +130,10 @@ mod tests {
     #[test]
     fn zai_stats_normalizes_five_hour_and_weekly_coding_plan() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: ZaiCodingPlanStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/zai/coding_plan_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = ZaiAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/zai/coding_plan_basic.json"),
+            ZaiAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 2);
 
         let five_h = &snapshot.windows[0];
