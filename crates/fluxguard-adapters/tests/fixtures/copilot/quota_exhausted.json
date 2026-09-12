@@ -1,0 +1,11 @@
+{
+  "quotaSnapshots": {
+    "premium_interactions": {
+      "entitlementRequests": 300,
+      "usedRequests": 300,
+      "remainingPercentage": 0,
+      "usageAllowedWithExhaustedQuota": false,
+      "overageAllowedWithExhaustedQuota": false
+    }
+  }
+}

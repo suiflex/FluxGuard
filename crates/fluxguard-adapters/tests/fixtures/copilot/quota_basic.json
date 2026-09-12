@@ -1,0 +1,24 @@
+{
+  "quotaSnapshots": {
+    "premium_interactions": {
+      "isUnlimitedEntitlement": false,
+      "entitlementRequests": 300,
+      "usedRequests": 75,
+      "usageAllowedWithExhaustedQuota": false,
+      "remainingPercentage": 75.0,
+      "overage": 0,
+      "overageAllowedWithExhaustedQuota": false,
+      "resetDate": "2026-10-01T00:00:00Z"
+    },
+    "chat": {
+      "isUnlimitedEntitlement": true,
+      "entitlementRequests": -1,
+      "usedRequests": 1200,
+      "usageAllowedWithExhaustedQuota": true,
+      "remainingPercentage": 100,
+      "overage": 0,
+      "overageAllowedWithExhaustedQuota": true
+    },
+    "completions": null
+  }
+}

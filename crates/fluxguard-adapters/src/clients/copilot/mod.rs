@@ -462,30 +462,7 @@ impl BudgetSource for CopilotAdapter {
 mod tests {
     use super::*;
 
-    const FIXTURE: &str = r#"{
-        "quotaSnapshots": {
-            "premium_interactions": {
-                "isUnlimitedEntitlement": false,
-                "entitlementRequests": 300,
-                "usedRequests": 75,
-                "usageAllowedWithExhaustedQuota": false,
-                "remainingPercentage": 75.0,
-                "overage": 0,
-                "overageAllowedWithExhaustedQuota": false,
-                "resetDate": "2026-10-01T00:00:00Z"
-            },
-            "chat": {
-                "isUnlimitedEntitlement": true,
-                "entitlementRequests": -1,
-                "usedRequests": 1200,
-                "usageAllowedWithExhaustedQuota": true,
-                "remainingPercentage": 100,
-                "overage": 0,
-                "overageAllowedWithExhaustedQuota": true
-            },
-            "completions": null
-        }
-    }"#;
+    const FIXTURE: &str = include_str!("../../../tests/fixtures/copilot/quota_basic.json");
 
     fn window<'a>(snapshot: &'a BudgetSnapshot, id: &str) -> &'a BudgetWindow {
         snapshot
@@ -522,10 +499,7 @@ mod tests {
 
     #[test]
     fn exhausted_quota_without_overage_is_hard_blocked() {
-        let payload = r#"{"quotaSnapshots":{"premium_interactions":{
-            "entitlementRequests": 300, "usedRequests": 300, "remainingPercentage": 0,
-            "usageAllowedWithExhaustedQuota": false, "overageAllowedWithExhaustedQuota": false
-        }}}"#;
+        let payload = include_str!("../../../tests/fixtures/copilot/quota_exhausted.json");
         let result: CopilotQuotaResult = serde_json::from_str(payload).expect("payload");
         let snapshot = CopilotAdapter::normalize(result).expect("normalize");
         assert!(window(&snapshot, "client.copilot.premium_interactions").hard_blocked);
