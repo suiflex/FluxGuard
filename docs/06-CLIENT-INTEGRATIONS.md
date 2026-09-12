@@ -126,15 +126,13 @@ Antigravity spans multiple developer surfaces across Google's AI developer platf
 4. **Gemini CLI (`gemini`)**: Developer CLI for direct Gemini interactions, configured in `~/.gemini/`.
 5. **Google & Gemini Credentials**: Supports `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, Vertex AI credentials, and Google OAuth profiles in `~/.gemini/google_accounts.json`.
 
-FluxGuard automatically detects these surfaces during `fluxguard doctor` and probes quota windows (5-hour and weekly quotas, plus model-level rate limits). Advisory advice is consumed via local MCP stdio or skill/hook workflows without scraping interactive TUIs.
+`fluxguard doctor` detects which of these surfaces are installed. No stable machine-readable quota surface has been confirmed, so the adapter reports `source_unsupported` rather than inventing quota windows; do not parse the interactive `/usage` / `/quota` TUI. Advisory advice is consumed via local MCP stdio or skill/hook workflows.
 
 ## GitHub Copilot
 
-GitHub's Copilot SDK exposes account quota information through `account.getQuota`, including remaining percentage and reset date.
+The Copilot CLI's headless server mode is the transport the official SDKs use. FluxGuard spawns `copilot --headless --stdio --no-auto-update`, performs the `connect` handshake (falling back when an older CLI lacks it), and calls `account.getQuota`, which returns remaining percentage, used/entitled requests, and reset date per quota type.
 
-Investigate whether the Rust process can consume that supported SDK surface directly or through a small companion process without compromising packaging.
-
-This is a strong candidate for the second exact-quota adapter.
+Enable it with `clients.copilot.enabled = true`; `clients.copilot.command` defaults to `copilot`.
 
 ## OpenCode
 
