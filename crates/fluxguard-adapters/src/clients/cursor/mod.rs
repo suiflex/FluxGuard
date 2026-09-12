@@ -248,13 +248,11 @@ mod tests {
 
     #[test]
     fn cursor_stats_normalizes_fast_requests_window() {
-        let stats = CursorUsageStats {
-            fast_requests_used: Some(40.0),
-            fast_requests_limit: Some(500.0),
-            slow_requests_used: None,
-            tokens_used: Some(150_000.0),
-            monthly_spend_usd: Some(4.50),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: CursorUsageStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/cursor/usage_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = CursorAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 3);
