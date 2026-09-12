@@ -215,7 +215,11 @@ impl OpenAiAdapter {
         Ok(BudgetSnapshot {
             source: descriptor,
             account_scope: None,
-            availability: Availability::Allowed,
+            availability: if windows.is_empty() {
+                Availability::Unknown
+            } else {
+                Availability::Allowed
+            },
             windows,
             observed_at: now,
             warnings,
@@ -247,21 +251,19 @@ impl BudgetSource for OpenAiAdapter {
         }
     }
 
+    // ponytail: no verified machine-readable quota surface yet, so report
+    // unsupported instead of publishing an empty "allowed" snapshot. Wire a
+    // real fetch here once an official surface exists.
     async fn refresh(&self) -> Result<BudgetSnapshot, SourceError> {
-        Self::normalize(OpenAiRateLimitStats::default())
+        Err(SourceError::UnsupportedVersion)
     }
 
     async fn run(
         &self,
-        updates: watch::Sender<fluxguard_runtime::SourceState>,
-        cancel: CancellationToken,
+        _updates: watch::Sender<fluxguard_runtime::SourceState>,
+        _cancel: CancellationToken,
     ) -> Result<(), SourceError> {
-        let snapshot = self.refresh().await?;
-        updates
-            .send(fluxguard_runtime::SourceState::ready(snapshot))
-            .map_err(|_| SourceError::Other)?;
-        cancel.cancelled().await;
-        Ok(())
+        self.refresh().await.map(|_| ())
     }
 }
 
@@ -296,5 +298,18 @@ mod tests {
         let spend_window = &snapshot.windows[2];
         assert_eq!(spend_window.dimension, MetricDimension::Currency);
         assert_eq!(spend_window.remaining_percent, Some(84.8));
+    }
+    #[test]
+    fn empty_stats_stay_unknown() {
+        let snapshot =
+            OpenAiAdapter::normalize(OpenAiRateLimitStats::default()).expect("normalize");
+        assert!(snapshot.windows.is_empty());
+        assert!(matches!(snapshot.availability, Availability::Unknown));
+    }
+
+    #[tokio::test]
+    async fn refresh_reports_unsupported_until_a_real_surface_exists() {
+        let result = OpenAiAdapter::new().refresh().await;
+        assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
     }
 }
