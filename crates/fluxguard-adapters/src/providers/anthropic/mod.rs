@@ -12,9 +12,7 @@ const OBSERVED_VIA: &str = "anthropic_rate_limit_headers";
 
 /// Anthropic API rate limit adapter.
 #[derive(Clone, Debug)]
-pub struct AnthropicAdapter {
-    descriptor: SourceDescriptor,
-}
+pub struct AnthropicAdapter;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,9 +49,7 @@ fn descriptor() -> SourceDescriptor {
 
 impl AnthropicAdapter {
     pub fn new() -> Self {
-        Self {
-            descriptor: descriptor(),
-        }
+        Self
     }
 
     pub fn normalize(stats: AnthropicRateLimitStats) -> Result<BudgetSnapshot, SourceError> {
@@ -127,7 +123,7 @@ impl Default for AnthropicAdapter {
 #[async_trait]
 impl BudgetSource for AnthropicAdapter {
     fn descriptor(&self) -> SourceDescriptor {
-        self.descriptor.clone()
+        descriptor()
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
@@ -149,12 +145,10 @@ mod tests {
     #[test]
     fn anthropic_stats_normalizes_requests_and_token_windows() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: AnthropicRateLimitStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/anthropic/rate_limits_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = AnthropicAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/anthropic/rate_limits_basic.json"),
+            AnthropicAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 3);
 
         let req_window = &snapshot.windows[0];
