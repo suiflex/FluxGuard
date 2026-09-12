@@ -23,6 +23,7 @@ BASE = f"https://github.com/{REPO}/releases/download/{TAG}"
 
 ARCHES = {
     "64bit": "fluxguard-windows-x86_64.zip",
+    "arm64": "fluxguard-windows-aarch64.zip",
 }
 
 
