@@ -1,3 +1,12 @@
+# Runs the organization's ForgeGuard gate over this pull request's changed
+# lines. The policy and the workflow both live in suiflex/Guardener; this file
+# only says that the repository takes part.
+#
+# The gate is in two halves and this is the first: it reads the branch and holds
+# nothing. `pull_request`, not `pull_request_target`, and no secrets — on a fork
+# this job runs with code its author controls, so there must be nothing here
+# worth reaching. The findings are reported by guardener-report.yml, which holds
+# the credentials and never checks the branch out.
 name: Guardener
 
 on:
@@ -8,6 +17,6 @@ permissions:
   contents: read
 
 jobs:
-  guardener:
+  forgeguard:
     if: github.repository_owner == 'suiflex'
     uses: suiflex/Guardener/.github/workflows/check.yml@main
