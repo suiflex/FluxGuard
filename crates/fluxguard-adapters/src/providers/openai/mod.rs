@@ -5,8 +5,6 @@ use fluxguard_core::{
 };
 use fluxguard_runtime::{BudgetSource, ProbeReport, SourceError};
 use serde::Deserialize;
-use tokio::sync::watch;
-use tokio_util::sync::CancellationToken;
 
 use crate::support::{self, WindowSpec};
 
@@ -154,14 +152,6 @@ impl BudgetSource for OpenAiAdapter {
     async fn refresh(&self) -> Result<BudgetSnapshot, SourceError> {
         Err(SourceError::UnsupportedVersion)
     }
-
-    async fn run(
-        &self,
-        _updates: watch::Sender<fluxguard_runtime::SourceState>,
-        _cancel: CancellationToken,
-    ) -> Result<(), SourceError> {
-        self.refresh().await.map(|_| ())
-    }
 }
 
 #[cfg(test)]
@@ -193,9 +183,5 @@ mod tests {
         assert_eq!(spend_window.remaining_percent, Some(84.8));
     }
 
-    #[tokio::test]
-    async fn detection_only_contract() {
-        let empty = OpenAiAdapter::normalize(OpenAiRateLimitStats::default()).expect("normalize");
-        support::assert_detection_only(&OpenAiAdapter::new(), empty).await;
-    }
+    detection_only_contract!(OpenAiAdapter, OpenAiAdapter::new(), OpenAiRateLimitStats);
 }
