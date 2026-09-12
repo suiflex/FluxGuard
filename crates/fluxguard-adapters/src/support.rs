@@ -166,17 +166,66 @@ pub(crate) fn snapshot(
     }
 }
 
+/// Detection-only adapters must keep an empty snapshot `Unknown`, refuse to
+/// refresh, and stop their run loop instead of polling forever.
 #[cfg(test)]
 pub(crate) async fn assert_detection_only(
     adapter: &dyn fluxguard_runtime::BudgetSource,
     empty: BudgetSnapshot,
 ) {
+    use fluxguard_runtime::SourceState;
+
     assert!(empty.windows.is_empty());
     assert!(matches!(empty.availability, Availability::Unknown));
     assert!(matches!(
         adapter.refresh().await,
         Err(SourceError::UnsupportedVersion)
     ));
+
+    let (sender, _receiver) =
+        tokio::sync::watch::channel(SourceState::initial(adapter.descriptor()));
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let run = adapter.run(sender, cancel);
+    let result = tokio::time::timeout(std::time::Duration::from_secs(2), run)
+        .await
+        .expect("run stops without polling");
+    assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
+}
+
+/// Expands to the detection-only contract test for one adapter.
+#[cfg(test)]
+macro_rules! detection_only_contract {
+    ($adapter:ty, $ctor:expr, $stats:ty) => {
+        #[tokio::test]
+        async fn detection_only_contract() {
+            let empty = <$adapter>::normalize(<$stats>::default()).expect("normalize");
+            $crate::support::assert_detection_only(&$ctor, empty).await;
+        }
+    };
+}
+
+/// Creates a unique scratch directory for a fake-binary test.
+#[cfg(test)]
+pub(crate) fn test_dir(name: &str) -> std::path::PathBuf {
+    let suffix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    let root = std::env::temp_dir().join(format!("fluxguard-{name}-{suffix}"));
+    std::fs::create_dir_all(&root).expect("create test directory");
+    root
+}
+
+/// Writes `contents` to `path` and marks it executable.
+#[cfg(test)]
+#[cfg(unix)]
+pub(crate) fn write_executable(path: &std::path::Path, contents: &str) {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::write(path, contents).expect("write test process");
+    let mut permissions = std::fs::metadata(path).expect("metadata").permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(path, permissions).expect("make executable");
 }
 
 #[cfg(test)]
