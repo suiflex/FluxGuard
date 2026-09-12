@@ -273,16 +273,11 @@ mod tests {
 
     #[test]
     fn openai_stats_normalizes_requests_and_tokens_limits() {
-        let stats = OpenAiRateLimitStats {
-            requests_limit: Some(10_000.0),
-            requests_remaining: Some(8_500.0),
-            requests_reset_seconds: Some(0.12),
-            tokens_limit: Some(2_000_000.0),
-            tokens_remaining: Some(1_800_000.0),
-            tokens_reset_seconds: Some(0.45),
-            current_spend_usd: Some(15.20),
-            spend_limit_usd: Some(100.0),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: OpenAiRateLimitStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/openai/rate_limits_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = OpenAiAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 3);
