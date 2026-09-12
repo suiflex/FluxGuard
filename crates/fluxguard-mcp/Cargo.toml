@@ -12,8 +12,8 @@ http = ["dep:axum", "rmcp/transport-streamable-http-server"]
 
 [dependencies]
 axum = { workspace = true, optional = true }
-fluxguard-core = { version = "0.1.2", path = "../fluxguard-core" }
-fluxguard-runtime = { version = "0.1.2", path = "../fluxguard-runtime" }
+fluxguard-core = { version = "0.1.3", path = "../fluxguard-core" }
+fluxguard-runtime = { version = "0.1.3", path = "../fluxguard-runtime" }
 rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true
