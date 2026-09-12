@@ -1,0 +1,8 @@
+{
+  "fiveHourUsedPercent": 25,
+  "fiveHourRemainingPercent": 75,
+  "weeklyUsedPercent": 40,
+  "weeklyRemainingPercent": 60,
+  "fiveHourResetsAtUnix": 1774915200,
+  "weeklyResetsAtUnix": 1775520000
+}

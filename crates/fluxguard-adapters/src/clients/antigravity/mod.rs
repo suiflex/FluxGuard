@@ -283,14 +283,11 @@ mod tests {
 
     #[test]
     fn antigravity_stats_normalizes_five_hour_and_weekly_windows() {
-        let stats = AntigravityQuotaStats {
-            five_hour_used_percent: Some(25.0),
-            five_hour_remaining_percent: Some(75.0),
-            weekly_used_percent: Some(40.0),
-            weekly_remaining_percent: Some(60.0),
-            five_hour_resets_at_unix: Some(1774915200),
-            weekly_resets_at_unix: Some(1775520000),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: AntigravityQuotaStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/antigravity/quota_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = AntigravityAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 2);
