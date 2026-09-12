@@ -388,7 +388,7 @@ impl Default for CopilotSettings {
     fn default() -> Self {
         Self {
             enabled: false,
-            command: "gh".into(),
+            command: "copilot".into(),
         }
     }
 }
@@ -566,14 +566,14 @@ mod tests {
         let toml_str = r#"
             [clients.copilot]
             enabled = true
-            command = "gh"
+            command = "copilot"
 
             [providers.openai]
             enabled = true
         "#;
         let config: Config = toml::from_str(toml_str).expect("parse config");
         assert!(config.clients.copilot.enabled);
-        assert_eq!(config.clients.copilot.command, "gh");
+        assert_eq!(config.clients.copilot.command, "copilot");
         assert!(!config.clients.cursor.enabled);
         assert!(config.providers.openai.enabled);
         assert!(!config.providers.anthropic.enabled);

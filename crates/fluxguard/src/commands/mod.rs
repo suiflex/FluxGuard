@@ -583,7 +583,9 @@ async fn doctor(config: Config) -> Result<(), CliError> {
             Err(_) => {
                 println!("  binary: not found");
                 println!("  state: unavailable");
-                println!("  action: install GitHub CLI (gh) or set clients.copilot.command");
+                println!(
+                    "  action: install GitHub Copilot CLI (copilot) or set clients.copilot.command"
+                );
             }
         }
     } else {
