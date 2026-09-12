@@ -262,12 +262,11 @@ mod tests {
 
     #[test]
     fn claude_code_stats_normalizes_context_window() {
-        let stats = ClaudeCodeStats {
-            session_input_tokens: Some(15_000.0),
-            session_output_tokens: Some(3_500.0),
-            context_tokens: Some(80_000.0),
-            context_limit: Some(200_000.0),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: ClaudeCodeStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/claude_code/session_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = ClaudeCodeAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 3);
