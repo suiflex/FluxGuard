@@ -594,6 +594,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("client.cursor");
     if config.clients.cursor.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let cursor = CursorAdapter::new();
         match cursor.probe().await {
             Ok(report) => {
@@ -609,6 +610,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("client.claude_code");
     if config.clients.claude_code.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let claude = ClaudeCodeAdapter::new(config.clients.claude_code.command);
         match claude.probe().await {
             Ok(report) => {
@@ -627,6 +629,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("client.antigravity");
     if config.clients.antigravity.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let agy = AntigravityAdapter::new(config.clients.antigravity.command);
         let surfaces = agy.probe_surfaces().await;
         match agy.probe().await {
@@ -651,6 +654,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("provider.openai");
     if config.providers.openai.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let openai = OpenAiAdapter::new();
         match openai.probe().await {
             Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
@@ -662,6 +666,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("provider.anthropic");
     if config.providers.anthropic.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let anthropic = AnthropicAdapter::new();
         match anthropic.probe().await {
             Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
@@ -673,6 +678,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("provider.xai");
     if config.providers.xai.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let xai = XaiAdapter::new();
         match xai.probe().await {
             Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
@@ -684,6 +690,7 @@ async fn doctor(config: Config) -> Result<(), CliError> {
 
     println!("provider.zai");
     if config.providers.zai.enabled {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
         let zai = ZaiAdapter::new();
         match zai.probe().await {
             Ok(report) => println!("  state: {}", probe_state_name(&report.state)),
