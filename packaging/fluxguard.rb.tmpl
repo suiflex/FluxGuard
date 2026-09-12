@@ -1,0 +1,41 @@
+# Template for suiflex/homebrew-tap Formula/fluxguard.rb.
+#
+# .github/workflows/release-build.yml renders this with sed on every tagged
+# release, filling the placeholders below from that run's build artifacts. Edit
+# this template, never the generated file in the tap: the next release
+# overwrites it.
+#
+# The class name follows the file name, so Formula/fluxguard.rb must declare
+# Fluxguard.
+class Fluxguard < Formula
+  desc "Provider-agnostic resource awareness layer for AI coding agents"
+  homepage "https://github.com/suiflex/FluxGuard"
+  version "@VERSION@"
+  license "Apache-2.0"
+
+  on_macos do
+    on_arm do
+      url "@BASE@/fluxguard-macos-aarch64.tar.gz"
+      sha256 "@MACOS_ARM64_SHA@"
+    end
+    on_intel do
+      url "@BASE@/fluxguard-macos-x86_64.tar.gz"
+      sha256 "@MACOS_X86_64_SHA@"
+    end
+  end
+
+  on_linux do
+    on_intel do
+      url "@BASE@/fluxguard-linux-x86_64.tar.gz"
+      sha256 "@LINUX_X86_64_SHA@"
+    end
+  end
+
+  def install
+    bin.install "fluxguard"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/fluxguard --version")
+  end
+end

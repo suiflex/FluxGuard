@@ -50,14 +50,14 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp "target/${{ matrix.target }}/release/fluxguard" "dist/${{ matrix.asset }}"
-          tar -czf "${{ matrix.asset }}.tar.gz" -C dist "${{ matrix.asset }}"
+          tar -czf "${{ matrix.asset }}.tar.gz" -C "target/${{ matrix.target }}/release" fluxguard
       - name: Package Windows binary
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/fluxguard.exe" "dist/${{ matrix.asset }}.exe"
-          Compress-Archive -Path "dist/${{ matrix.asset }}.exe" -DestinationPath "${{ matrix.asset }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/fluxguard.exe" -DestinationPath "${{ matrix.asset }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
@@ -100,6 +100,84 @@ jobs:
           for package in fluxguard-core fluxguard-runtime fluxguard-adapters fluxguard-mcp fluxguard; do
             cargo publish --locked -p "$package"
           done
+
+  publish-homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render formula and push to tap
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          base="https://github.com/${REPO}/releases/download/${TAG}"
+
+          dl() { gh release download "$TAG" -R "$REPO" -p "$1" -O "$1" --clobber; }
+          sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
+
+          for a in fluxguard-macos-aarch64 fluxguard-macos-x86_64 fluxguard-linux-x86_64; do
+            dl "$a.tar.gz"
+          done
+          macos_arm64_sha="$(sha fluxguard-macos-aarch64.tar.gz)"
+          macos_x86_64_sha="$(sha fluxguard-macos-x86_64.tar.gz)"
+          linux_x86_64_sha="$(sha fluxguard-linux-x86_64.tar.gz)"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/suiflex/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          sed -e "s|@VERSION@|${VERSION}|g" \
+              -e "s|@BASE@|${base}|g" \
+              -e "s|@MACOS_ARM64_SHA@|${macos_arm64_sha}|g" \
+              -e "s|@MACOS_X86_64_SHA@|${macos_x86_64_sha}|g" \
+              -e "s|@LINUX_X86_64_SHA@|${linux_x86_64_sha}|g" \
+              packaging/fluxguard.rb.tmpl > tap/Formula/fluxguard.rb
+
+          f=tap/Formula/fluxguard.rb
+          ruby -c "$f" > /dev/null || { echo "::error::${f} is not valid Ruby"; exit 1; }
+          if leftover="$(grep -n '@[A-Z0-9_]*@' "$f")"; then
+            echo "::error::${f} has unsubstituted placeholders:"; echo "$leftover"; exit 1
+          fi
+          if bad="$(grep -n 'sha256' "$f" | grep -vE '"[0-9a-f]{64}"')"; then
+            echo "::error::${f} has a sha256 that is not a 64-hex digest:"; echo "$bad"; exit 1
+          fi
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/fluxguard.rb
+          git commit -m "fluxguard ${VERSION}" || { echo "no change"; exit 0; }
+          git push
+
+  publish-scoop:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render manifest and push to bucket
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          dl() { gh release download "$TAG" -R "$REPO" -p "$1" -O "$1" --clobber; }
+
+          dl "fluxguard-windows-x86_64.zip"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/suiflex/scoop-bucket.git" bucket
+          mkdir -p bucket/bucket
+          python3 packaging/render_scoop.py > bucket/bucket/fluxguard.json
+
+          cd bucket
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/fluxguard.json
+          git commit -m "fluxguard ${TAG#v}" || { echo "no change"; exit 0; }
+          git push
 
   publish-npm:
     needs: publish

@@ -574,10 +574,7 @@ struct RpcEnvelope<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use super::*;
-    use fluxguard_runtime::{SourceRegistry, SourceStateKind};
 
     #[test]
     fn basic_fixture_maps_primary_and_secondary_windows() {
@@ -658,8 +655,11 @@ mod tests {
         use std::{
             fs,
             os::unix::fs::PermissionsExt,
+            sync::Arc,
             time::{SystemTime, UNIX_EPOCH},
         };
+
+        use fluxguard_runtime::{SourceRegistry, SourceStateKind};
 
         let suffix = SystemTime::now()
             .duration_since(UNIX_EPOCH)
