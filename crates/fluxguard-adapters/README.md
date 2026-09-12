@@ -152,6 +152,41 @@ above, so the binary lands where it originally did. When the check cannot reach
 the remote it reports `unknown` and exits non-zero rather than claiming the
 current version is latest.
 
+## Configure
+
+```sh
+fluxguard config          # interactive editor: pick sources, set thresholds
+fluxguard config path     # print the file this machine reads
+fluxguard config check    # validate the file and the environment overrides
+fluxguard config --dry-run # show what the editor would write, write nothing
+```
+
+The editor probes every adapter before it asks anything, so each row shows
+whether that source is present on this machine, whether enabling it actually
+yields quota data, and its probe state. Sources marked `detection only` have no
+verified machine-readable quota surface yet and report `source_unsupported`
+when refreshed, so the editor never pre-selects one.
+
+Already-enabled sources stay selected; on a first run the editor pre-selects the
+sources that are both present and able to read quota. Writing keeps the previous
+file beside the new one as `config.toml.bak`, and the whole configuration is
+re-validated before anything is written. Hand-written comments do not survive a
+rewrite.
+
+Thresholds can also be set by hand or through the environment:
+
+```toml
+[pressure]
+guarded_remaining_percent   = 50
+conserve_remaining_percent  = 25
+critical_remaining_percent  = 10
+emergency_remaining_percent = 3
+```
+
+```sh
+FLUXGUARD_PRESSURE_GUARDED_REMAINING_PERCENT=65   # environment wins over the file
+```
+
 ## Connect to a Client
 
 FluxGuard provides an interactive installer that writes merge-safe MCP configuration entries with automatic `.bak` backups:
