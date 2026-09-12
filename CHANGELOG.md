@@ -2,6 +2,14 @@
 
 All notable changes to FluxGuard will be documented here.
 
+## [0.1.3](https://github.com/suiflex/FluxGuard/compare/v0.1.2...v0.1.3) (2026-09-12)
+
+
+### Bug Fixes
+
+* **ci:** remove --locked and add retry loop for crates publish ([e9db53d](https://github.com/suiflex/FluxGuard/commit/e9db53dbc0f97337c104ead2559f49130c48b94f))
+* **ci:** remove --locked and add retry loop for crates publish ([38ce8e8](https://github.com/suiflex/FluxGuard/commit/38ce8e8ae7b02d03050b5da25da8f7fd04dfe0cc))
+
 ## [0.1.2](https://github.com/suiflex/FluxGuard/compare/v0.1.1...v0.1.2) (2026-09-12)
 
 
