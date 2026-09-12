@@ -450,12 +450,7 @@ impl BudgetSource for CopilotAdapter {
         updates: watch::Sender<fluxguard_runtime::SourceState>,
         cancel: CancellationToken,
     ) -> Result<(), SourceError> {
-        let snapshot = self.refresh().await?;
-        updates
-            .send(fluxguard_runtime::SourceState::ready(snapshot))
-            .map_err(|_| SourceError::Other)?;
-        cancel.cancelled().await;
-        Ok(())
+        fluxguard_runtime::publish_once(self, updates, cancel).await
     }
 }
 
@@ -475,8 +470,7 @@ mod tests {
 
     #[test]
     fn quota_result_normalizes_limited_and_unlimited_snapshots() {
-        let result: CopilotQuotaResult = serde_json::from_str(FIXTURE).expect("fixture");
-        let snapshot = CopilotAdapter::normalize(result).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(FIXTURE, CopilotAdapter::normalize);
 
         assert_eq!(snapshot.windows.len(), 2);
         assert!(matches!(snapshot.availability, Availability::Allowed));
@@ -501,16 +495,14 @@ mod tests {
     #[test]
     fn exhausted_quota_without_overage_is_hard_blocked() {
         let payload = include_str!("../../../tests/fixtures/copilot/quota_exhausted.json");
-        let result: CopilotQuotaResult = serde_json::from_str(payload).expect("payload");
-        let snapshot = CopilotAdapter::normalize(result).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(payload, CopilotAdapter::normalize);
         assert!(window(&snapshot, "client.copilot.premium_interactions").hard_blocked);
 
         let payload = payload.replace(
             "\"overageAllowedWithExhaustedQuota\": false",
             "\"overageAllowedWithExhaustedQuota\": true",
         );
-        let result: CopilotQuotaResult = serde_json::from_str(&payload).expect("payload");
-        let snapshot = CopilotAdapter::normalize(result).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(&payload, CopilotAdapter::normalize);
         assert!(!window(&snapshot, "client.copilot.premium_interactions").hard_blocked);
     }
 
@@ -522,8 +514,7 @@ mod tests {
         assert_eq!(snapshot.warnings[0].code, "copilot_quota_missing");
 
         let bad_date = r#"{"quotaSnapshots":{"chat":{"entitlementRequests":10,"usedRequests":1,"resetDate":"soon"}}}"#;
-        let result: CopilotQuotaResult = serde_json::from_str(bad_date).expect("payload");
-        let snapshot = CopilotAdapter::normalize(result).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(bad_date, CopilotAdapter::normalize);
         assert_eq!(snapshot.windows[0].resets_at, None);
         assert_eq!(snapshot.warnings[0].code, "invalid_reset_date");
 
