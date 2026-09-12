@@ -1,0 +1,15 @@
+name: Guardener report
+
+on:
+  workflow_run:
+    workflows: ["Guardener"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report:
+    if: github.repository_owner == 'suiflex'
+    uses: suiflex/Guardener/.github/workflows/report.yml@main

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions, ideas, and integration help
+    url: https://github.com/suiflex/FluxGuard/discussions
+    about: Ask for setup help, explore an integration, or discuss an RFC before opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/suiflex/FluxGuard/security/advisories/new
+    about: Report exploitable vulnerabilities privately; do not open a public issue.
+  - name: Code of Conduct
+    url: https://github.com/suiflex/FluxGuard/blob/main/CODE_OF_CONDUCT.md
+    about: Read the community standards before participating.

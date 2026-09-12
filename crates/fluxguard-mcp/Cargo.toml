@@ -1,0 +1,25 @@
+[package]
+name = "fluxguard-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP tools, resources, and transports for FluxGuard"
+repository.workspace = true
+homepage.workspace = true
+
+[features]
+http = ["dep:axum", "rmcp/transport-streamable-http-server"]
+
+[dependencies]
+axum = { workspace = true, optional = true }
+fluxguard-core = { version = "0.0.0", path = "../fluxguard-core" }
+fluxguard-runtime = { version = "0.0.0", path = "../fluxguard-runtime" }
+rmcp.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+time.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

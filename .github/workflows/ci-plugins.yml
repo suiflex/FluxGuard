@@ -1,0 +1,33 @@
+name: Client plugins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - ".github/workflows/ci-plugins.yml"
+  pull_request:
+    paths:
+      - "plugins/**"
+      - ".github/workflows/ci-plugins.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse plugin scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in plugins/*/preflight.sh; do
+            sh -n "$script"
+            test -x "$script"
+          done

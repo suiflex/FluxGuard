@@ -1,0 +1,8 @@
+# Default owner for everything in this repo.
+# See https://docs.github.com/articles/about-code-owners
+* @suiflex/maintainers
+
+# License changes require maintainer review.
+/LICENSE @suiflex/maintainers
+/CLA.md @suiflex/maintainers
+/CODE_OF_CONDUCT.md @suiflex/maintainers

@@ -1,0 +1,21 @@
+[package]
+name = "fluxguard-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Runtime source registry and lifecycle services for FluxGuard"
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+fluxguard-core = { version = "0.0.0", path = "../fluxguard-core" }
+async-trait.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+time.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
+

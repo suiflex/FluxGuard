@@ -1,0 +1,88 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "initial-version": "0.0.0",
+  "packages": {
+    ".": {
+      "package-name": "fluxguard",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard-runtime/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard-adapters/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard-adapters/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-runtime\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard-mcp/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard-mcp/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-runtime\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-adapters\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-core\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-mcp\"].version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/fluxguard/Cargo.toml",
+          "jsonpath": "$.dependencies[\"fluxguard-runtime\"].version"
+        },
+        {
+          "type": "json",
+          "path": "npm/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "plugins/manifest.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "style", "section": "Styles", "hidden": true },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build System", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true }
+  ]
+}

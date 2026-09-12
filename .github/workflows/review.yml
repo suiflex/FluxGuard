@@ -1,0 +1,22 @@
+name: Guardener Review
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: >-
+      github.repository_owner == 'suiflex' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+               github.event.comment.author_association)
+    uses: suiflex/Guardener/.github/workflows/review.yml@main
+    secrets:
+      app_id: ${{ secrets.GUARDENER_BOT_APP_ID }}
+      private_key: ${{ secrets.GUARDENER_BOT_PRIVATE_KEY }}
+      model_url: ${{ secrets.GUARDENER_MODEL_URL }}
+      model_key: ${{ secrets.GUARDENER_MODEL_KEY }}
+      model: ${{ secrets.GUARDENER_MODEL }}
+      model_vomit: ${{ secrets.GUARDENER_MODEL_VOMIT }}

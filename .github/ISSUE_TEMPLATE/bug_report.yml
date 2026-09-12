@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a reproducible problem with FluxGuard
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please search existing issues before opening a duplicate. Never include tokens, cookies, API keys, account identifiers, or complete provider responses.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: FluxGuard version
+      description: Output of `fluxguard --version`, or the commit you are running.
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client or host
+      options:
+        - Codex
+        - Claude Code
+        - Cursor
+        - OpenCode
+        - Antigravity
+        - GitHub Copilot
+        - CLI only
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source or integration
+      options:
+        - Codex App Server
+        - OpenCode stats
+        - Manual budget
+        - MCP transport
+        - CLI configuration
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Include the smallest useful output. Remove secrets and personal information before posting.
+      render: shell
+  - type: textarea
+    id: reproduction_repository
+    attributes:
+      label: Minimal reproduction
+      description: Link a minimal repository or paste the smallest sanitized configuration that reproduces the problem.

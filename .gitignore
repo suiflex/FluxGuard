@@ -1,0 +1,22 @@
+# Build
+/target
+**/*.rs.bk
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.claude
+.agents
+.forgeguard
+.mcp.json
+
+# Env & secrets
+.env
+.env.*
+!.env.example

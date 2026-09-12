@@ -1,0 +1,17 @@
+{
+  "ordinaryUsageAllowed": true,
+  "rateLimits": {
+    "limitId": "legacy",
+    "primary": { "usedPercent": 99 }
+  },
+  "rateLimitsByLimitId": {
+    "codex": {
+      "limitId": "codex",
+      "primary": { "usedPercent": 20, "windowDurationMins": 300 }
+    },
+    "gpt-5": {
+      "limitId": "gpt-5",
+      "primary": { "usedPercent": 70, "windowDurationMins": 300 }
+    }
+  }
+}

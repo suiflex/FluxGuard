@@ -1,0 +1,42 @@
+{
+  "name": "@suiflex/fluxguard",
+  "version": "0.0.0",
+  "description": "FluxGuard resource awareness MCP launcher for AI coding agents",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suiflex/FluxGuard.git",
+    "directory": "npm"
+  },
+  "homepage": "https://github.com/suiflex/FluxGuard",
+  "bugs": {
+    "url": "https://github.com/suiflex/FluxGuard/issues"
+  },
+  "keywords": [
+    "mcp",
+    "ai-agents",
+    "codex",
+    "claude",
+    "antigravity",
+    "fluxguard"
+  ],
+  "bin": {
+    "fluxguard": "bin/fluxguard.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "test": "node test.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

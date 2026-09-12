@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fluxguard-core",
+    "crates/fluxguard-runtime",
+    "crates/fluxguard-adapters",
+    "crates/fluxguard-mcp",
+    "crates/fluxguard",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/suiflex/FluxGuard"
+homepage = "https://github.com/suiflex/FluxGuard"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+ 
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "macros", "parsing", "serde"] }
+async-trait = "0.1"
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+rmcp = { version = "3.3", default-features = false, features = ["macros", "schemars", "server", "transport-io"] }
+schemars = "1"
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+proptest = "1"
+axum = "0.8"

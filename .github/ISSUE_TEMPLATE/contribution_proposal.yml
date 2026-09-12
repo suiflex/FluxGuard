@@ -1,0 +1,55 @@
+name: Contribution proposal
+description: Propose a focused contribution before investing in a larger change
+labels: [proposal]
+body:
+  - type: markdown
+    attributes:
+      value: Keep the first slice small enough to review, verify, and merge independently. New adapters must use documented or explicitly classified experimental surfaces.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who encounters this problem, and what happens today?
+    validations:
+      required: true
+  - type: textarea
+    id: contribution
+    attributes:
+      label: Proposed contribution
+      description: Describe the smallest useful change you want to make.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Documentation or example
+        - Core domain or policy
+        - Client adapter
+        - Provider adapter
+        - MCP transport or tool
+        - CLI or configuration
+        - Release or CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy impact
+      description: Explain authentication ownership, data scope, secret handling, and whether any upstream surface is official, estimated, manual, or experimental.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: What exact test, artifact, or observable result will prove the contribution works?
+    validations:
+      required: true
+  - type: textarea
+    id: help
+    attributes:
+      label: Help needed
+      description: Name any design decision, file, test, or maintainer guidance you need before starting.

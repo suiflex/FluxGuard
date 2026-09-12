@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an improvement to FluxGuard
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who encounters this problem, and what does FluxGuard fail to support today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful behavior or interface change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include workarounds or other approaches you considered.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Core domain or policy
+        - Client adapter
+        - Provider adapter
+        - MCP transport or tool
+        - CLI or configuration
+        - Documentation
+        - Release or CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Success evidence
+      description: What exact test, artifact, or observable result would prove this solves the problem?
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to help implement or verify a focused version of this request.

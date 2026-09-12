@@ -1,0 +1,7 @@
+{
+  "ordinaryUsageAllowed": false,
+  "rateLimits": {
+    "limitId": "codex",
+    "primary": { "usedPercent": 1, "resetsAt": 1790000000 }
+  }
+}

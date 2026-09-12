@@ -1,0 +1,17 @@
+{
+  "name": "fluxguard-client-plugins",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "clients": [
+    "codex",
+    "claude-code",
+    "cursor",
+    "opencode",
+    "omp",
+    "hermes",
+    "openclaw",
+    "9router"
+  ],
+  "behavior": "advisory_preflight",
+  "command": "fluxguard hook <operation> --importance <required|useful|optional> --json"
+}
