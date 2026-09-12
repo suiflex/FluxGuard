@@ -5,8 +5,6 @@ use fluxguard_core::{
 };
 use fluxguard_runtime::{BudgetSource, ProbeReport, ProbeState, SourceError};
 use serde::Deserialize;
-use tokio::sync::watch;
-use tokio_util::sync::CancellationToken;
 
 use crate::support::{self, WindowSpec};
 
@@ -207,14 +205,6 @@ impl BudgetSource for AntigravityAdapter {
     async fn refresh(&self) -> Result<BudgetSnapshot, SourceError> {
         Err(SourceError::UnsupportedVersion)
     }
-
-    async fn run(
-        &self,
-        _updates: watch::Sender<fluxguard_runtime::SourceState>,
-        _cancel: CancellationToken,
-    ) -> Result<(), SourceError> {
-        self.refresh().await.map(|_| ())
-    }
 }
 
 #[cfg(test)]
@@ -242,10 +232,9 @@ mod tests {
         assert_eq!(weekly.remaining_percent, Some(60.0));
     }
 
-    #[tokio::test]
-    async fn detection_only_contract() {
-        let empty =
-            AntigravityAdapter::normalize(AntigravityQuotaStats::default()).expect("normalize");
-        support::assert_detection_only(&AntigravityAdapter::new("agy"), empty).await;
-    }
+    detection_only_contract!(
+        AntigravityAdapter,
+        AntigravityAdapter::new("agy"),
+        AntigravityQuotaStats
+    );
 }
