@@ -2,7 +2,7 @@
 
 # FluxGuard
 
-`FluxGuard` is a provider-agnostic resource awareness layer for AI coding agents.
+FluxGuard gives coding agents resource awareness: when to explore, when to parallelize, when to conserve, and when to finish.
 
 It measures quota, context window, request rate limits, and budget flow (flux), returning concise execution advice so agents make cost-effective decisions and avoid unexpected quota exhaustion.
 
