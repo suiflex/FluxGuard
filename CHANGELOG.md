@@ -2,6 +2,38 @@
 
 All notable changes to FluxGuard will be documented here.
 
+## [0.2.0](https://github.com/suiflex/FluxGuard/compare/v0.1.3...v0.2.0) (2026-09-12)
+
+
+### Features
+
+* **adapters:** add anthropic api provider adapter ([763607d](https://github.com/suiflex/FluxGuard/commit/763607d438f5c1a3deca35da1cdc7fc619395192))
+* **adapters:** add claude code client telemetry adapter ([6eefce6](https://github.com/suiflex/FluxGuard/commit/6eefce68cc928514eb51436f4037a983abe8655c))
+* **adapters:** add cursor client telemetry adapter ([76d30c3](https://github.com/suiflex/FluxGuard/commit/76d30c31bef0fe756a6c3e4c46f7f0ba3d715f14))
+* **adapters:** add github copilot client adapter ([b64e5b1](https://github.com/suiflex/FluxGuard/commit/b64e5b1fa1834aee8ec523e661fff4d7adc77a54))
+* **adapters:** add google antigravity client adapter ([bb9146e](https://github.com/suiflex/FluxGuard/commit/bb9146eaabf6676e44d67573910737807eb78e83))
+* **adapters:** add openai api provider adapter ([b8e2f20](https://github.com/suiflex/FluxGuard/commit/b8e2f20c25de38f296555787d13cb27986d8f3eb))
+* **adapters:** add xai api provider adapter ([ca2467e](https://github.com/suiflex/FluxGuard/commit/ca2467e7bba1047ad7aab5e85a18979eeac17145))
+* **adapters:** add zai glm coding plan provider adapter ([f9e14a4](https://github.com/suiflex/FluxGuard/commit/f9e14a41eeb585b50110292557b95262489e465f))
+* **adapters:** expand client and provider matrix ([be43479](https://github.com/suiflex/FluxGuard/commit/be43479ac9335a926aa3c166d61d600b15dcd6da))
+* **cli:** add update command, config editor, and install menu ([#16](https://github.com/suiflex/FluxGuard/issues/16)) ([ad935e9](https://github.com/suiflex/FluxGuard/commit/ad935e93d79c6c1069f53061f8da815710468a67))
+* **cli:** wire matrix adapters into config and doctor command ([b8b7f0c](https://github.com/suiflex/FluxGuard/commit/b8b7f0c9889b9fbe14e6d1c27faacaf50d1f88e1))
+* **runtime:** add publish_once run strategy for one-shot sources ([d9c975d](https://github.com/suiflex/FluxGuard/commit/d9c975d7b825510c721a78df0358bc3767db3b09))
+
+
+### Bug Fixes
+
+* **adapters:** make anthropic adapter report unsupported instead of empty data ([21780ab](https://github.com/suiflex/FluxGuard/commit/21780abd5d35cb87d89f723c6f6a679fd6758c9f))
+* **adapters:** make antigravity adapter report unsupported instead of empty data ([012995d](https://github.com/suiflex/FluxGuard/commit/012995def88888c952d1a92638ca7d57a3e0dc15))
+* **adapters:** make claude_code adapter report unsupported instead of empty data ([9040cc1](https://github.com/suiflex/FluxGuard/commit/9040cc137c28ba18c8fec72d5b97cbe5ad051bf3))
+* **adapters:** make cursor adapter report unsupported instead of empty data ([7137c1a](https://github.com/suiflex/FluxGuard/commit/7137c1ae17e1c7180ec81e9389e0ef555cda383c))
+* **adapters:** make openai adapter report unsupported instead of empty data ([ccd6745](https://github.com/suiflex/FluxGuard/commit/ccd67451594d320a67e0c94e66eafba99a22c20e))
+* **adapters:** make xai adapter report unsupported instead of empty data ([012b061](https://github.com/suiflex/FluxGuard/commit/012b0614886ccd23897d5c6228ec0e01d91b507f))
+* **adapters:** make zai adapter report unsupported instead of empty data ([e69bb1b](https://github.com/suiflex/FluxGuard/commit/e69bb1bde1af9314f26d41e58ac2c38358c85873))
+* **adapters:** read copilot quota via headless cli account.getQuota ([b70291a](https://github.com/suiflex/FluxGuard/commit/b70291aa03489538b5272bb551fdee73de10ac4c))
+* **cli:** flag detection-only sources in doctor output ([07509f5](https://github.com/suiflex/FluxGuard/commit/07509f500714ac8f375553e6eeabbceaf89e7f5d))
+* **runtime:** stop the default run loop when a source is unsupported ([7d43ed3](https://github.com/suiflex/FluxGuard/commit/7d43ed3f82413b916719538340c4d19684953e12))
+
 ## [0.1.3](https://github.com/suiflex/FluxGuard/compare/v0.1.2...v0.1.3) (2026-09-12)
 
 
