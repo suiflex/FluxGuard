@@ -1,0 +1,8 @@
+{
+  "fiveHourRequestsLimit": 100,
+  "fiveHourRequestsRemaining": 85,
+  "fiveHourResetsAtUnix": 1774915200,
+  "weeklyRequestsLimit": 1000,
+  "weeklyRequestsRemaining": 920,
+  "weeklyResetsAtUnix": 1775520000
+}

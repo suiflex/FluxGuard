@@ -234,14 +234,11 @@ mod tests {
 
     #[test]
     fn zai_stats_normalizes_five_hour_and_weekly_coding_plan() {
-        let stats = ZaiCodingPlanStats {
-            five_hour_requests_limit: Some(100.0),
-            five_hour_requests_remaining: Some(85.0),
-            five_hour_resets_at_unix: Some(1774915200),
-            weekly_requests_limit: Some(1_000.0),
-            weekly_requests_remaining: Some(920.0),
-            weekly_resets_at_unix: Some(1775520000),
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: ZaiCodingPlanStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/zai/coding_plan_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = ZaiAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 2);
