@@ -22,15 +22,23 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'release-please--'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: develop
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@798765259009fa26591fa51138541e2b611e9766 # v5
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           target-branch: develop
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Prefix release title with product name
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          gh release edit "${{ steps.release.outputs.tag_name }}" \
+            --title "FluxGuard ${{ steps.release.outputs.tag_name }}"
