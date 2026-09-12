@@ -9,7 +9,7 @@ use fluxguard_core::{
     Freshness, MetricDimension, PressureConfig, Provenance, SourceCapabilities, SourceDescriptor,
     SourceId, SourceKind, SourceQuality, WindowId,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{Duration, OffsetDateTime};
 
@@ -29,7 +29,7 @@ pub enum ConfigError {
     InvalidManualSource { id: String, reason: String },
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub pressure: PressureSettings,
@@ -309,7 +309,7 @@ fn invalid_env(name: &str, reason: &str) -> ConfigError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct PressureSettings {
     pub guarded_remaining_percent: f64,
@@ -341,7 +341,7 @@ impl PressureSettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ClientsSettings {
     pub codex: CodexSettings,
@@ -352,7 +352,7 @@ pub struct ClientsSettings {
     pub antigravity: AntigravitySettings,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CodexSettings {
     pub enabled: bool,
@@ -370,7 +370,7 @@ impl Default for CodexSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct OpenCodeSettings {
     pub enabled: bool,
@@ -386,7 +386,7 @@ impl Default for OpenCodeSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CopilotSettings {
     pub enabled: bool,
@@ -402,13 +402,13 @@ impl Default for CopilotSettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CursorSettings {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ClaudeCodeSettings {
     pub enabled: bool,
@@ -424,7 +424,7 @@ impl Default for ClaudeCodeSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AntigravitySettings {
     pub enabled: bool,
@@ -440,7 +440,7 @@ impl Default for AntigravitySettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProvidersSettings {
     pub openai: ProviderSettings,
@@ -449,19 +449,19 @@ pub struct ProvidersSettings {
     pub zai: ProviderSettings,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProviderSettings {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SourcesSettings {
     pub manual: Vec<ManualSourceSettings>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ManualSourceSettings {
     pub id: String,
     pub dimension: String,
