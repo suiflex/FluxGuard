@@ -230,13 +230,11 @@ mod tests {
 
     #[test]
     fn xai_stats_normalizes_rps_and_tpm_limits() {
-        let stats = XaiRateLimitStats {
-            requests_per_second_limit: Some(10.0),
-            requests_per_second_used: Some(2.0),
-            tokens_per_minute_limit: Some(600_000.0),
-            tokens_per_minute_used: Some(120_000.0),
-            retry_after_seconds: None,
-        };
+        // Shape is FluxGuard's own normalized contract, not a vendor payload.
+        let stats: XaiRateLimitStats = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/xai/rate_limits_basic.json"
+        ))
+        .expect("fixture");
 
         let snapshot = XaiAdapter::normalize(stats).expect("normalize");
         assert_eq!(snapshot.windows.len(), 2);
