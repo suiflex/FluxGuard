@@ -13,9 +13,13 @@ Build a reliable, provider-agnostic MCP server that:
 3. determines current resource pressure,
 4. returns concise execution advice to the calling agent.
 
-The first production adapter is Codex.
+The Codex vertical slice is complete, and Codex, OpenCode, and GitHub Copilot
+read real quota today. Every other adapter in the matrix is detection only: it
+probes and reports, but its refresh returns `source_unsupported` because no
+verified machine-readable quota surface exists for it yet.
 
-Do not broaden the first milestone to every client/provider.
+Do not turn a detection-only adapter into one that appears to work. Wire a real
+fetch, or leave it reporting unsupported.
 
 ## Architecture constraints
 
@@ -198,10 +202,13 @@ Every MCP tool needs schema and response contract tests.
 
 ## Implementation order
 
-Follow the implementation order in `docs/12-CODEX-IMPLEMENTATION-PLAN.md`
-and keep public behavior aligned with the contracts in `docs/`.
+Keep public behavior aligned with the contracts in `docs/`.
+`docs/12-CODEX-IMPLEMENTATION-PLAN.md` records how the first slice was built and
+remains the reference for how a source is brought up.
 
-Do not skip directly to provider expansion before the Codex vertical slice is complete.
+A new source is finished only when it reads a documented surface. Until then it
+belongs in the matrix as detection only, and `docs/07-PROVIDER-MATRIX.md` must
+say so.
 
 ## Before finishing a change
 
@@ -215,7 +222,22 @@ cargo test --workspace
 
 If one cannot run, report exactly why.
 
-Update documentation when public behavior changes.
+Update documentation when public behavior changes. The per-crate and `npm/`
+READMEs are byte-identical copies of the root one, so they move together.
+`AGENTS.md` is a symlink to this file.
+
+## Interactive commands
+
+`install`, and `config` without a subcommand, prompt on a terminal. Each must:
+
+- refuse rather than guess when stdin or stdout is not a terminal;
+- keep a non-interactive path (`--client`, `--dry-run`, environment overrides)
+  so automation never needs a TTY;
+- degrade to plain text when `NO_COLOR` is set or output is redirected.
+
+The brand mark in `crates/fluxguard/src/theme.rs` is sampled from
+`assets/brand/logo-mark.svg`; regenerate it with `sh tests/logo.sh` and verify
+with `sh tests/logo.sh --check` rather than hand-editing the grid.
 
 ## Definition of done
 

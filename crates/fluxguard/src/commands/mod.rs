@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, IsTerminal, Write},
+    io::{self, IsTerminal},
     net::SocketAddr,
     path::{Path, PathBuf},
     process::Command as ProcessCommand,
@@ -27,7 +27,10 @@ use fluxguard_runtime::{BudgetSource, ManualSource, SourceRegistry, SourceStateK
 use thiserror::Error;
 use tokio::sync::Mutex;
 
+mod config_edit;
+
 use crate::config::{Config, ConfigError};
+use crate::theme;
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -43,6 +46,14 @@ pub enum CliError {
     Server(String),
     #[error("install requires a TTY when --client is omitted")]
     InstallRequiresTty,
+    #[error("editing the configuration requires a TTY")]
+    ConfigRequiresTty,
+    #[error("install cancelled")]
+    InstallCancelled,
+    #[error("could not determine the latest release")]
+    UpdateCheckUnavailable,
+    #[error("the installer did not complete")]
+    UpdateFailed,
     #[error("unsupported client: {0}")]
     UnsupportedClient(String),
     #[error("MCP client configuration is invalid")]
@@ -105,18 +116,42 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Inspect or edit the configuration; without a subcommand this opens the
+    /// interactive editor.
     Config {
         #[command(subcommand)]
-        command: ConfigCommand,
+        command: Option<ConfigCommand>,
+        /// Show the configuration that would be written, and write nothing
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Update FluxGuard to the latest release, or only check for one.
+    ///
+    /// Running `fluxguard update` installs a newer release when one exists;
+    /// `--check` reports without installing anything.
+    Update {
+        /// Only report whether a newer release exists
+        #[arg(long)]
+        check: bool,
+        #[arg(long)]
+        json: bool,
     },
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
+    /// Validate the configuration and the environment overrides
     Check,
+    /// Print the configuration file this machine reads
+    Path,
 }
 
 pub async fn run(cli: Cli) -> Result<(), CliError> {
+    // Updating must work even when the configuration on disk is the thing that
+    // needs fixing, so it runs before the config is read.
+    if let Command::Update { check, json } = cli.command {
+        return update(check, json);
+    }
     let config = Config::load(cli.config.as_deref())?;
     match cli.command {
         Command::Serve => serve(config).await,
@@ -138,13 +173,135 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
             importance,
             json,
         } => advice(config, operation, importance, json).await,
-        Command::Config {
-            command: ConfigCommand::Check,
-        } => {
+        Command::Config { command, dry_run } => {
+            // `--config` names the file to act on; otherwise it is this
+            // machine's own.
+            let path = cli.config.unwrap_or_else(Config::path);
+            configure(config, command, &path, dry_run).await
+        }
+        Command::Update { .. } => unreachable!("handled before the configuration is loaded"),
+    }
+}
+
+async fn configure(
+    config: Config,
+    command: Option<ConfigCommand>,
+    path: &Path,
+    dry_run: bool,
+) -> Result<(), CliError> {
+    match command {
+        // Loading already validated it, including the environment overrides.
+        Some(ConfigCommand::Check) => {
             println!("configuration valid");
             Ok(())
         }
+        Some(ConfigCommand::Path) => {
+            println!("{}", path.display());
+            if !path.exists() {
+                println!("(no file yet; defaults are in use)");
+            }
+            Ok(())
+        }
+        None => config_edit::run(config, path, dry_run).await,
     }
+}
+
+fn update(check_only: bool, json: bool) -> Result<(), CliError> {
+    // The platform decides where a disposable file goes; reading HOME directly
+    // would miss it on Windows, where the profile comes from a known folder.
+    let cache_dir = Config::cache_dir();
+    let current = crate::update::current_version();
+    let Some(check) = crate::update::check_for_update(&cache_dir, true) else {
+        // The remote could not be reached and nothing was cached: unknown, not
+        // "up to date".
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "unknown",
+                    "current": current,
+                }))?
+            );
+        } else {
+            println!(
+                "{}",
+                theme::point("release check unavailable", theme::AMBER)
+            );
+            println!("  current: {current}");
+            println!("  action: check your network, or install manually:");
+            println!("          {}", crate::update::INSTALL_COMMAND);
+        }
+        return Err(CliError::UpdateCheckUnavailable);
+    };
+
+    if !check.update_available {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "up_to_date",
+                    "current": check.current,
+                    "latest": check.latest,
+                    "update_available": false,
+                }))?
+            );
+        } else {
+            println!("{}", theme::point("up to date", theme::ACCENT));
+            println!("  current: {}", check.current);
+        }
+        return Ok(());
+    }
+
+    if check_only {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "update_available",
+                    "current": check.current,
+                    "latest": check.latest,
+                    "update_available": true,
+                }))?
+            );
+        } else {
+            println!("{}", theme::point("update available", theme::AMBER));
+            println!("  current: {}", check.current);
+            println!("  latest:  {}", check.latest);
+            println!("  action: run `fluxguard update` to install it");
+        }
+        return Ok(());
+    }
+
+    if !json {
+        println!(
+            "{}",
+            theme::step(
+                "update",
+                &[format!("{} → {}", check.current, check.latest)],
+                theme::ACCENT,
+            )
+        );
+    }
+    let status = crate::update::run_install_command().map_err(|_| CliError::UpdateFailed)?;
+    if !status.success() {
+        return Err(CliError::UpdateFailed);
+    }
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "status": "updated",
+                "previous": check.current,
+                "latest": check.latest,
+            }))?
+        );
+    } else {
+        println!(
+            "{}",
+            theme::point(&format!("installed {}", check.latest), theme::ACCENT)
+        );
+    }
+    Ok(())
 }
 fn install(
     client: Option<String>,
@@ -234,30 +391,125 @@ const SUPPORTED_INSTALL_CLIENTS: &[&str] = &[
     "generic-json",
 ];
 
+/// What selecting a client writes, so the menu says more than a bare name.
+/// `None` means the client is configured by hand and nothing is detectable.
+const CLIENT_SUMMARY: &[(&str, &str, Option<&str>)] = &[
+    (
+        "claude-code",
+        "~/.claude.json (--project: .mcp.json)",
+        Some(".claude.json"),
+    ),
+    ("codex", "codex mcp add", Some(".codex/config.toml")),
+    ("cursor", "~/.cursor/mcp.json", Some(".cursor")),
+    (
+        "opencode",
+        "~/.config/opencode/opencode.jsonc",
+        Some(".config/opencode"),
+    ),
+    (
+        "antigravity",
+        "~/.gemini/antigravity/mcp_config.json",
+        Some(".gemini"),
+    ),
+    ("openclaw", "~/.openclaw/openclaw.json", Some(".openclaw")),
+    ("omp", "prints manual MCP instructions", None),
+    ("hermes", "prints manual MCP instructions", None),
+    ("9router", "prints manual MCP instructions", None),
+    ("generic-json", "prints manual MCP instructions", None),
+];
+
+/// A client counts as present when the path it would be configured through
+/// already exists. Nothing is read from those files; only their presence.
+fn detected_clients() -> Vec<&'static str> {
+    CLIENT_SUMMARY
+        .iter()
+        .filter(|(_, _, marker)| {
+            marker.is_some_and(|marker| home_path(marker).is_ok_and(|path| path.exists()))
+        })
+        .map(|(client, _, _)| *client)
+        .collect()
+}
+
+/// Menu rows pair the client name with what selecting it writes, padded so the
+/// summaries line up into a readable column.
+fn client_menu_rows(detected: &[&str]) -> Vec<String> {
+    let width = CLIENT_SUMMARY
+        .iter()
+        .map(|(client, _, _)| client.len())
+        .max()
+        .unwrap_or_default();
+    CLIENT_SUMMARY
+        .iter()
+        .map(|(client, summary, _)| {
+            let mark = if detected.contains(client) { "·" } else { " " };
+            format!("{client:<width$} {mark} {summary}")
+        })
+        .collect()
+}
+
+fn client_from_row(row: &str) -> Option<&'static str> {
+    let name = row.split_whitespace().next()?;
+    SUPPORTED_INSTALL_CLIENTS
+        .iter()
+        .find(|client| **client == name)
+        .copied()
+}
+
 fn choose_client() -> Result<String, CliError> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err(CliError::InstallRequiresTty);
     }
-    println!("FluxGuard MCP installation target:");
-    for (index, client) in SUPPORTED_INSTALL_CLIENTS.iter().enumerate() {
-        println!("  {}) {client}", index + 1);
-    }
-    print!("Select client [1-{}]: ", SUPPORTED_INSTALL_CLIENTS.len());
-    io::stdout()
-        .flush()
-        .map_err(|_| CliError::ClientCommandFailed)?;
-    let mut input = String::new();
-    io::stdin()
-        .read_line(&mut input)
-        .map_err(|_| CliError::ClientCommandFailed)?;
-    let index = input
-        .trim()
-        .parse::<usize>()
-        .map_err(|_| CliError::UnsupportedClient(input.trim().into()))?;
-    SUPPORTED_INSTALL_CLIENTS
-        .get(index.saturating_sub(1))
-        .map(|client| (*client).into())
-        .ok_or_else(|| CliError::UnsupportedClient(input.trim().into()))
+    println!("{}\n", theme::banner());
+
+    let detected = detected_clients();
+    println!(
+        "{}\n",
+        theme::step(
+            "install — detected",
+            &[if detected.is_empty() {
+                "no client configuration found".to_owned()
+            } else {
+                format!("{} — marked with · below", detected.join(", "))
+            }],
+            if detected.is_empty() {
+                theme::AMBER
+            } else {
+                theme::ACCENT
+            },
+        )
+    );
+
+    let rows = client_menu_rows(&detected);
+    // Start the cursor on the first detected client, which is the one a user
+    // most likely came here to configure.
+    let cursor = detected
+        .first()
+        .and_then(|client| {
+            CLIENT_SUMMARY
+                .iter()
+                .position(|(candidate, _, _)| candidate == client)
+        })
+        .unwrap_or_default();
+    // The row carries its summary, which makes a useful menu but a wrapped mess
+    // once echoed back as the answer. Echo the name alone.
+    let formatter =
+        &|row: inquire::list_option::ListOption<&String>| -> String { first_word(row.value) };
+    let picked = inquire::Select::new("Which client?", rows)
+        .with_starting_cursor(cursor)
+        .with_page_size(CLIENT_SUMMARY.len())
+        .with_formatter(formatter)
+        .with_render_config(theme::render_config())
+        .with_help_message("↑↓ move · enter confirm · esc cancel")
+        .prompt()
+        .map_err(|_| CliError::InstallCancelled)?;
+
+    client_from_row(&picked)
+        .map(Into::into)
+        .ok_or_else(|| CliError::UnsupportedClient(first_word(&picked)))
+}
+
+fn first_word(row: &str) -> String {
+    row.split_whitespace().next().unwrap_or_default().to_owned()
 }
 
 fn server_entry(client: &str) -> serde_json::Value {

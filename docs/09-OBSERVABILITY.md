@@ -82,12 +82,13 @@ Never print credential paths unless required for a documented integration.
 
 ## Debug fixture mode
 
-Support replaying sanitized adapter fixtures.
-
-Example:
+Sanitized adapter fixtures live in `crates/fluxguard-adapters/tests/fixtures/`
+and are replayed by the adapters' own parsing tests, so adapter debugging is
+reproducible without real account data:
 
 ```bash
-fluxguard doctor --fixture tests/fixtures/codex/rate_limits.json
+cargo test -p fluxguard-adapters
 ```
 
-This makes adapter debugging reproducible without real account data.
+A `--fixture` flag on `doctor` is not implemented; the fixtures are exercised
+through the test suite instead.

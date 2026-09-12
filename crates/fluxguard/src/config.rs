@@ -9,7 +9,7 @@ use fluxguard_core::{
     Freshness, MetricDimension, PressureConfig, Provenance, SourceCapabilities, SourceDescriptor,
     SourceId, SourceKind, SourceQuality, WindowId,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{Duration, OffsetDateTime};
 
@@ -29,7 +29,7 @@ pub enum ConfigError {
     InvalidManualSource { id: String, reason: String },
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub pressure: PressureSettings,
@@ -38,11 +38,35 @@ pub struct Config {
     pub sources: SourcesSettings,
 }
 
+fn fallback_cache_dir() -> PathBuf {
+    std::env::temp_dir().join("fluxguard")
+}
+
+/// The application's own directories. "Project" here means FluxGuard itself,
+/// not the repository it is run from: the paths are per-user and identical
+/// whatever the working directory.
+fn project_dirs() -> Option<ProjectDirs> {
+    ProjectDirs::from("", "FluxGuard", "FluxGuard")
+}
+
 impl Config {
     pub fn path() -> PathBuf {
-        ProjectDirs::from("", "FluxGuard", "FluxGuard")
+        project_dirs()
             .map(|dirs| dirs.config_dir().join("config.toml"))
             .unwrap_or_else(|| PathBuf::from("config.toml"))
+    }
+
+    /// Where derived, disposable files belong: excluded from Time Machine on
+    /// macOS, sweepable under `~/.cache` on Linux, and in the local rather than
+    /// the roaming profile on Windows.
+    ///
+    /// Falls back to a directory under the system temp when the platform
+    /// reports no home. Losing this cache only costs one extra lookup, so a
+    /// headless or sandboxed environment should not fail over it.
+    pub fn cache_dir() -> PathBuf {
+        project_dirs()
+            .map(|dirs| dirs.cache_dir().to_path_buf())
+            .unwrap_or_else(fallback_cache_dir)
     }
 
     pub fn load(path: Option<&Path>) -> Result<Self, ConfigError> {
@@ -309,7 +333,7 @@ fn invalid_env(name: &str, reason: &str) -> ConfigError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct PressureSettings {
     pub guarded_remaining_percent: f64,
@@ -341,7 +365,7 @@ impl PressureSettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ClientsSettings {
     pub codex: CodexSettings,
@@ -352,7 +376,7 @@ pub struct ClientsSettings {
     pub antigravity: AntigravitySettings,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CodexSettings {
     pub enabled: bool,
@@ -370,7 +394,7 @@ impl Default for CodexSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct OpenCodeSettings {
     pub enabled: bool,
@@ -386,7 +410,7 @@ impl Default for OpenCodeSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CopilotSettings {
     pub enabled: bool,
@@ -402,13 +426,13 @@ impl Default for CopilotSettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct CursorSettings {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ClaudeCodeSettings {
     pub enabled: bool,
@@ -424,7 +448,7 @@ impl Default for ClaudeCodeSettings {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AntigravitySettings {
     pub enabled: bool,
@@ -440,7 +464,7 @@ impl Default for AntigravitySettings {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProvidersSettings {
     pub openai: ProviderSettings,
@@ -449,19 +473,19 @@ pub struct ProvidersSettings {
     pub zai: ProviderSettings,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProviderSettings {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SourcesSettings {
     pub manual: Vec<ManualSourceSettings>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ManualSourceSettings {
     pub id: String,
     pub dimension: String,
@@ -568,6 +592,32 @@ mod tests {
         );
         assert_eq!(snapshot.source.kind, SourceKind::UserConfigured);
         assert_eq!(snapshot.source.source_quality, SourceQuality::Manual);
+    }
+
+    #[test]
+    fn cache_directory_is_absolute_and_falls_back_to_temp() {
+        // Always somewhere writable: the platform cache when there is a home,
+        // a temp directory when there is not.
+        let resolved = Config::cache_dir();
+        assert!(resolved.is_absolute(), "{}", resolved.display());
+
+        let fallback = fallback_cache_dir();
+        assert!(fallback.starts_with(std::env::temp_dir()));
+        assert_eq!(
+            fallback.file_name().and_then(|name| name.to_str()),
+            Some("fluxguard")
+        );
+    }
+
+    #[test]
+    fn the_cache_never_lands_inside_the_config_directory() {
+        // A disposable file in the config directory would be backed up on macOS
+        // and synced across machines on Windows.
+        let cache = Config::cache_dir();
+        let config = Config::path();
+        let config_dir = config.parent().expect("config has a parent");
+        assert_ne!(cache, config_dir);
+        assert!(!cache.starts_with(config_dir), "{}", cache.display());
     }
 
     #[test]

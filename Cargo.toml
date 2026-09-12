@@ -32,6 +32,7 @@ tokio-util = { version = "0.7", features = ["rt"] }
 rmcp = { version = "3.3", default-features = false, features = ["macros", "schemars", "server", "transport-io"] }
 schemars = "1"
 clap = { version = "4", features = ["derive"] }
+inquire = "0.9"
 directories = "6"
 toml = "0.9"
 tracing = "0.1"

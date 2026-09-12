@@ -543,6 +543,10 @@ mod tests {
         use super::*;
         use std::fs;
 
+        /// Generous, because these tests assert on which error comes back: a
+        /// slow machine must not turn an expected auth failure into a timeout.
+        const READ_TIMEOUT: Duration = Duration::from_secs(30);
+
         /// Writes a shell script that answers with the given JSON-RPC bodies, in order,
         /// using Content-Length framing, then lingers until killed.
         fn script(replies: &[&str]) -> (std::path::PathBuf, std::path::PathBuf) {
@@ -569,8 +573,7 @@ mod tests {
                 r#"{"jsonrpc":"2.0","method":"log","params":{"level":"info"}}"#,
                 r#"{"jsonrpc":"2.0","id":2,"result":{"quotaSnapshots":{"premium_interactions":{"entitlementRequests":300,"usedRequests":30,"remainingPercentage":90}}}}"#,
             ]);
-            let adapter =
-                CopilotAdapter::new(path.to_string_lossy().into_owned(), Duration::from_secs(2));
+            let adapter = CopilotAdapter::new(path.to_string_lossy().into_owned(), READ_TIMEOUT);
             assert_eq!(
                 adapter.probe().await.expect("probe").state,
                 ProbeState::Ready
@@ -587,8 +590,7 @@ mod tests {
                 r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}"#,
                 r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"No GitHub authentication available"}}"#,
             ]);
-            let adapter =
-                CopilotAdapter::new(path.to_string_lossy().into_owned(), Duration::from_secs(2));
+            let adapter = CopilotAdapter::new(path.to_string_lossy().into_owned(), READ_TIMEOUT);
             assert!(matches!(
                 adapter.refresh().await,
                 Err(SourceError::Unauthenticated)

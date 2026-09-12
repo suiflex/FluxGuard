@@ -55,6 +55,9 @@ One pull request should address one logical change and one verifiable outcome.
 | `crates/fluxguard/` | Installable CLI, configuration, and process assembly |
 | `docs/` | Architecture, contracts, research, ADRs, and roadmap |
 | `plugins/` | Advisory client hook packages |
+| `npm/` | Global launcher package that resolves the release binary |
+| `scripts/` | Platform install scripts used by the curl and PowerShell flows |
+| `tests/logo.sh` | Regenerates the terminal brand mark from `assets/brand/` |
 
 Client adapters and provider adapters remain separate. Provider-specific JSON
 must stay inside the adapter that owns it; generic domain types must remain
@@ -82,6 +85,11 @@ FLUXGUARD_CLIENTS_CODEX_ENABLED=false fluxguard status --json
 FLUXGUARD_CLIENTS_CODEX_ENABLED=false fluxguard sources
 fluxguard doctor
 ```
+
+`install` and a bare `config` are interactive. Keep both usable without a
+terminal — `--client`, `--dry-run`, and the `FLUXGUARD_*` environment overrides
+exist so CI never needs a TTY — and keep colour optional: everything must stay
+readable under `NO_COLOR=1` or when redirected.
 
 ## Build, lint, and test
 
@@ -158,6 +166,11 @@ Before implementing a source:
 6. add unavailable, malformed, and stale-path coverage;
 7. add diagnostics without authentication material;
 8. update the provider matrix and relevant contract documentation.
+
+A source that cannot yet read a documented surface must return
+`SourceError::UnsupportedVersion` from `refresh`, and an empty normalized
+snapshot must be `Availability::Unknown`. Publishing an empty snapshot as
+`Allowed` claims a source that is not there.
 
 Allowed source qualities are `official_structured`, `official_cli`,
 `official_headers`, `official_telemetry`, `estimated`, `manual`, and

@@ -173,7 +173,7 @@ Commands:
 ```bash
 fluxguard serve
 fluxguard status --json
-fluxguard advice spawn-parallel-subagents --json
+fluxguard advice spawn_parallel_subagents --json
 fluxguard sources
 fluxguard doctor
 ```

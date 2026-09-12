@@ -1,4 +1,4 @@
-.PHONY: build fmt fmt-check lint test check npm-test npm-pack
+.PHONY: build fmt fmt-check lint test check npm-test npm-pack paths
 
 build:
 	cargo build --workspace
@@ -21,4 +21,7 @@ npm-test:
 npm-pack:
 	cd npm && npm pack --dry-run --ignore-scripts
 
-check: fmt-check lint test npm-test
+paths:
+	sh scripts/check-no-local-paths.sh
+
+check: fmt-check lint test npm-test paths
