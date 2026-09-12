@@ -192,6 +192,20 @@ pub(crate) async fn assert_detection_only(
     assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
 }
 
+/// Parses a JSON fixture and normalizes it, panicking with context on failure.
+#[cfg(test)]
+pub(crate) fn fixture_snapshot<S, E>(
+    json: &str,
+    normalize: fn(S) -> Result<BudgetSnapshot, E>,
+) -> BudgetSnapshot
+where
+    S: serde::de::DeserializeOwned,
+    E: std::fmt::Debug,
+{
+    let stats: S = serde_json::from_str(json).expect("fixture parses");
+    normalize(stats).expect("fixture normalizes")
+}
+
 /// Expands to the detection-only contract test for one adapter.
 #[cfg(test)]
 macro_rules! detection_only_contract {
