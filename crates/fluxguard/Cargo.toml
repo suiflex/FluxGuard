@@ -10,6 +10,7 @@ homepage.workspace = true
 [dependencies]
 clap.workspace = true
 directories.workspace = true
+inquire.workspace = true
 fluxguard-adapters = { version = "0.1.3", path = "../fluxguard-adapters" }
 fluxguard-core = { version = "0.1.3", path = "../fluxguard-core" }
 fluxguard-mcp = { version = "0.1.3", path = "../fluxguard-mcp", features = ["http"] }
