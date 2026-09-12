@@ -1,14 +1,23 @@
 name: release-build
 
+# A version-tag push builds the release and updates all distribution channels.
+# workflow_dispatch is an npm-only recovery path for an existing release tag.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish to npm
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -18,7 +27,7 @@ jobs:
             asset: fluxguard-macos-aarch64
             extension: ""
             archive: tar.gz
-          - os: macos-14 # cross-compile Intel on Apple Silicon (no scarce macos-13)
+          - os: macos-14 # cross-compile Intel on Apple Silicon
             target: x86_64-apple-darwin
             asset: fluxguard-macos-x86_64
             extension: ""
@@ -46,13 +55,16 @@ jobs:
             archive: zip
             experimental: true
     runs-on: ${{ matrix.os }}
+    # Experimental arm legs are best effort: a failure must not fail the `build`
+    # job, because the publish-* jobs depend on it and the release is otherwise
+    # complete. The formula and manifest renderers drop the missing arch.
     continue-on-error: ${{ matrix.experimental || false }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
+      - uses: Swatinem/rust-cache@v2
         with:
           shared-key: release-${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }} -p fluxguard
@@ -71,39 +83,51 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/fluxguard.exe" "dist/${{ matrix.asset }}.exe"
           Compress-Archive -Path "target/${{ matrix.target }}/release/fluxguard.exe" -DestinationPath "${{ matrix.asset }}.zip"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
           path: |
             ${{ matrix.asset }}.${{ matrix.archive }}
             dist/${{ matrix.asset }}${{ matrix.extension }}
 
+  # Publishes every asset together with SHA256SUMS in one release, so install.sh
+  # never sees a release whose checksums have not been uploaded yet.
   publish:
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
       - name: Generate checksums
-        run: cd artifacts && sha256sum fluxguard-*.* > SHA256SUMS
-      - uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef299c7d8760 # v2.0.4
+        run: cd artifacts && sha256sum fluxguard-* > SHA256SUMS
+      - uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*
           generate_release_notes: true
 
+  # ---- distribution jobs: siblings, all need `publish`, none need each other ----
+  # A failure in one does NOT cancel the others, so a broken tap does not cost
+  # the crates.io or npm publish.
+
   publish-crates:
+    if: github.event_name == 'push'
     needs: publish
     runs-on: ubuntu-latest
+    # Trusted Publishing, so there is no crates.io token to store or rotate.
+    # crates-io-auth-action trades the OIDC token for a credential that lasts
+    # 30 minutes, and revokes it in its post step. Same arrangement as
+    # publish-npm, which is why both name the Release environment.
     environment: Release
     permissions:
-      contents: read
       id-token: write
+      contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-      - uses: rust-lang/crates-io-auth-action@ec45511b025732152a558ea3e30f1d07c390558b # v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
         id: auth
       - name: Publish crates in dependency order
         env:
@@ -115,10 +139,11 @@ jobs:
           done
 
   publish-homebrew:
+    if: github.event_name == 'push'
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
       - name: Render formula and push to tap
         env:
           GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
@@ -139,6 +164,18 @@ jobs:
           macos_x86_64_sha="$(sha fluxguard-macos-x86_64.tar.gz)"
           linux_x86_64_sha="$(sha fluxguard-linux-x86_64.tar.gz)"
 
+          # arm64 Linux is a best-effort build leg, so its asset may legitimately
+          # be absent. Publish the stanza when it exists and drop just that
+          # stanza when it does not, rather than failing an otherwise good
+          # release.
+          arm64_tgz="fluxguard-linux-aarch64.tar.gz"
+          if dl "$arm64_tgz"; then
+            arm64_rules=(-e "s|@LINUX_ARM64_SHA@|$(sha "$arm64_tgz")|g" -e "s| # @LINUX_ARM64@||g")
+          else
+            echo "::warning::${arm64_tgz} missing; formula ships linux x86_64 only"
+            arm64_rules=(-e "/# @LINUX_ARM64@/d")
+          fi
+
           git clone "https://x-access-token:${GH_TOKEN}@github.com/suiflex/homebrew-tap.git" tap
           mkdir -p tap/Formula
           sed -e "s|@VERSION@|${VERSION}|g" \
@@ -146,13 +183,21 @@ jobs:
               -e "s|@MACOS_ARM64_SHA@|${macos_arm64_sha}|g" \
               -e "s|@MACOS_X86_64_SHA@|${macos_x86_64_sha}|g" \
               -e "s|@LINUX_X86_64_SHA@|${linux_x86_64_sha}|g" \
+              "${arm64_rules[@]}" \
               packaging/fluxguard.rb.tmpl > tap/Formula/fluxguard.rb
 
+          # Nothing else checks this file. It is rendered by sed and pushed
+          # straight to the tap, so without this a broken render would only
+          # surface on a user's `brew install`. Validate the rendered output:
+          # sed is the part that can go wrong.
           f=tap/Formula/fluxguard.rb
           ruby -c "$f" > /dev/null || { echo "::error::${f} is not valid Ruby"; exit 1; }
           if leftover="$(grep -n '@[A-Z0-9_]*@' "$f")"; then
             echo "::error::${f} has unsubstituted placeholders:"; echo "$leftover"; exit 1
           fi
+          # sha() on a missing asset yields an empty string, rendering sha256 "".
+          # Homebrew accepts that at render time and only fails much later,
+          # mid-download, on the user's machine.
           if bad="$(grep -n 'sha256' "$f" | grep -vE '"[0-9a-f]{64}"')"; then
             echo "::error::${f} has a sha256 that is not a 64-hex digest:"; echo "$bad"; exit 1
           fi
@@ -165,10 +210,11 @@ jobs:
           git push
 
   publish-scoop:
+    if: github.event_name == 'push'
     needs: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
       - name: Render manifest and push to bucket
         env:
           GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
@@ -180,10 +226,18 @@ jobs:
           dl() { gh release download "$TAG" -R "$REPO" -p "$1" -O "$1" --clobber; }
 
           dl "fluxguard-windows-x86_64.zip"
-          dl "fluxguard-windows-aarch64.zip" || true
+          # arm64 Windows is a best-effort build leg, so its asset may
+          # legitimately be absent. The renderer emits that architecture only
+          # when the file is present, so scoop never points at a 404.
+          dl "fluxguard-windows-aarch64.zip" \
+            || echo "::warning::fluxguard-windows-aarch64.zip missing; manifest ships 64bit only"
 
           git clone "https://x-access-token:${GH_TOKEN}@github.com/suiflex/scoop-bucket.git" bucket
           mkdir -p bucket/bucket
+          # Built rather than sed-templated: a scoop manifest is JSON, so
+          # constructing it makes an unsubstituted placeholder or a malformed
+          # optional stanza impossible by construction. A broken manifest would
+          # otherwise only surface on a user's `scoop install`.
           python3 packaging/render_scoop.py > bucket/bucket/fluxguard.json
 
           cd bucket
@@ -193,20 +247,94 @@ jobs:
           git commit -m "fluxguard ${TAG#v}" || { echo "no change"; exit 0; }
           git push
 
+  # Publishes @suiflex/fluxguard to npm. The package's postinstall downloads the
+  # matching release asset at the user's install time, so this job ships only
+  # the tiny installer, not the binaries.
   publish-npm:
+    if: github.event_name == 'push'
     needs: publish
+    runs-on: ubuntu-latest
+    # OIDC Trusted Publishing: no NPM_TOKEN. The npm package trusts this repo,
+    # this workflow, and the `Release` environment; GitHub mints a short-lived
+    # OIDC token.
+    environment: Release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # setup-node v7, not v4: older versions write an _authToken line into
+      # .npmrc that npm reads as "auth is already configured", so it never runs
+      # the OIDC exchange. That is what failed the v0.2.0 publish, first as a
+      # 404 and then, with registry-url removed, as ENEEDAUTH. v7 handles the
+      # trusted-publishing case, and is what rdb publishes with today.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1; node 20 ships npm 10. Keep this
+      # below npm 12, which no longer supports the Node 20 runner.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      # Pin the package version to the release tag so it can never drift from
+      # the crate version if release-please's file sync lags a release.
+      - name: Set version from tag
+        working-directory: npm
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      # No --provenance. Trusted publishing attests on its own: the v0.2.0
+      # publish that finally succeeded ran without the flag and still produced
+      # an attestation, and rdb publishes the same way.
+      - run: npm publish --access public
+        working-directory: npm
+
+  # Re-publishes only the npm installer for an existing release tag. Kept
+  # separate from the tag path: release assets and package taps have already
+  # succeeded, so a retry must not rebuild or overwrite them.
+  recover-npm:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: Release
     permissions:
-      contents: read
       id-token: write
+      contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/checkout@v4
         with:
-          node-version: 22
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
           registry-url: https://registry.npmjs.org
-      - name: Upgrade npm for trusted publishing
-        run: npm install --global npm@11.5.2
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - name: Set version from tag
+        working-directory: npm
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
       - run: npm publish --access public
         working-directory: npm
+
+  # Re-publishes the crate to crates.io for an existing release tag.
+  recover-crates:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: Release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          for package in fluxguard-core fluxguard-runtime fluxguard-adapters fluxguard-mcp fluxguard; do
+            cargo publish --locked -p "$package"
+          done
