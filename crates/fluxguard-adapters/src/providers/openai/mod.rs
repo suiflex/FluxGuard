@@ -13,9 +13,7 @@ const BUDGET_VIA: &str = "openai_usage_budget";
 
 /// OpenAI API rate limit and budget adapter.
 #[derive(Clone, Debug)]
-pub struct OpenAiAdapter {
-    descriptor: SourceDescriptor,
-}
+pub struct OpenAiAdapter;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,9 +52,7 @@ fn resets_in(now: OffsetDateTime, seconds: Option<f64>) -> Option<OffsetDateTime
 
 impl OpenAiAdapter {
     pub fn new() -> Self {
-        Self {
-            descriptor: descriptor(),
-        }
+        Self
     }
 
     pub fn normalize(stats: OpenAiRateLimitStats) -> Result<BudgetSnapshot, SourceError> {
@@ -139,7 +135,7 @@ impl Default for OpenAiAdapter {
 #[async_trait]
 impl BudgetSource for OpenAiAdapter {
     fn descriptor(&self) -> SourceDescriptor {
-        self.descriptor.clone()
+        descriptor()
     }
 
     async fn probe(&self) -> Result<ProbeReport, SourceError> {
@@ -161,12 +157,10 @@ mod tests {
     #[test]
     fn openai_stats_normalizes_requests_and_tokens_limits() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: OpenAiRateLimitStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/openai/rate_limits_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = OpenAiAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/openai/rate_limits_basic.json"),
+            OpenAiAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 3);
 
         let req_window = &snapshot.windows[0];
