@@ -25,6 +25,10 @@ class Fluxguard < Formula
   end
 
   on_linux do
+    on_arm do # @LINUX_ARM64@
+      url "@BASE@/fluxguard-linux-aarch64.tar.gz" # @LINUX_ARM64@
+      sha256 "@LINUX_ARM64_SHA@" # @LINUX_ARM64@
+    end # @LINUX_ARM64@
     on_intel do
       url "@BASE@/fluxguard-linux-x86_64.tar.gz"
       sha256 "@LINUX_X86_64_SHA@"
