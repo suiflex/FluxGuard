@@ -171,12 +171,10 @@ mod tests {
     #[test]
     fn claude_code_stats_normalizes_context_window() {
         // Shape is FluxGuard's own normalized contract, not a vendor payload.
-        let stats: ClaudeCodeStats = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/claude_code/session_basic.json"
-        ))
-        .expect("fixture");
-
-        let snapshot = ClaudeCodeAdapter::normalize(stats).expect("normalize");
+        let snapshot = crate::support::fixture_snapshot(
+            include_str!("../../../tests/fixtures/claude_code/session_basic.json"),
+            ClaudeCodeAdapter::normalize,
+        );
         assert_eq!(snapshot.windows.len(), 3);
 
         let ctx_window = &snapshot.windows[0];
