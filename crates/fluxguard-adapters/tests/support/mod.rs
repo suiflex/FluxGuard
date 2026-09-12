@@ -1,7 +1,10 @@
 //! Fake-binary helpers shared by adapter unit tests. Included from `lib.rs`
-//! under `#[cfg(test)]`; not an integration test target.
+//! under `#[cfg(all(test, unix))]`; not an integration test target.
 
-use std::path::{Path, PathBuf};
+use std::{
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 
 /// Creates a unique scratch directory for a fake-binary test.
 pub(crate) fn test_dir(name: &str) -> PathBuf {
@@ -15,10 +18,7 @@ pub(crate) fn test_dir(name: &str) -> PathBuf {
 }
 
 /// Writes `contents` to `path` and marks it executable.
-#[cfg(unix)]
 pub(crate) fn write_executable(path: &Path, contents: &str) {
-    use std::os::unix::fs::PermissionsExt;
-
     std::fs::write(path, contents).expect("write test process");
     let mut permissions = std::fs::metadata(path).expect("metadata").permissions();
     permissions.set_mode(0o755);

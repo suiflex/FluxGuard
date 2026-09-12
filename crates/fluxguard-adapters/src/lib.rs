@@ -2,7 +2,8 @@
 
 #[macro_use]
 mod support;
-#[cfg(test)]
+// Fake-binary tests spawn shell scripts, so the helpers are unix-only.
+#[cfg(all(test, unix))]
 #[path = "../tests/support/mod.rs"]
 mod test_support;
 
