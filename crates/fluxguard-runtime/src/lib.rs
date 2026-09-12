@@ -11,5 +11,5 @@ pub use manual::ManualSource;
 pub use registry::{RegistryError, SourceRegistry};
 pub use scheduler::RefreshScheduler;
 pub use source::{
-    BudgetSource, ProbeReport, ProbeState, SourceError, SourceState, SourceStateKind,
+    publish_once, BudgetSource, ProbeReport, ProbeState, SourceError, SourceState, SourceStateKind,
 };

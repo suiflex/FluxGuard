@@ -15,6 +15,69 @@
       - any-glob-to-any-file:
           - "crates/fluxguard-adapters/**"
 
+# One label per adapter so a PR shows which sources it touches.
+# Globs cover the adapter module and its parsing fixtures.
+
+"adapter: codex":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/codex/**"
+          - "crates/fluxguard-adapters/tests/fixtures/codex/**"
+
+"adapter: opencode":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/opencode/**"
+          - "crates/fluxguard-adapters/tests/fixtures/opencode/**"
+
+"adapter: copilot":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/copilot/**"
+          - "crates/fluxguard-adapters/tests/fixtures/copilot/**"
+
+"adapter: cursor":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/cursor/**"
+          - "crates/fluxguard-adapters/tests/fixtures/cursor/**"
+
+"adapter: claude-code":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/claude_code/**"
+          - "crates/fluxguard-adapters/tests/fixtures/claude_code/**"
+
+"adapter: antigravity":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/clients/antigravity/**"
+          - "crates/fluxguard-adapters/tests/fixtures/antigravity/**"
+
+"adapter: openai":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/providers/openai/**"
+          - "crates/fluxguard-adapters/tests/fixtures/openai/**"
+
+"adapter: anthropic":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/providers/anthropic/**"
+          - "crates/fluxguard-adapters/tests/fixtures/anthropic/**"
+
+"adapter: xai":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/providers/xai/**"
+          - "crates/fluxguard-adapters/tests/fixtures/xai/**"
+
+"adapter: zai":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "crates/fluxguard-adapters/src/providers/zai/**"
+          - "crates/fluxguard-adapters/tests/fixtures/zai/**"
+
 "area: mcp":
   - changed-files:
       - any-glob-to-any-file:

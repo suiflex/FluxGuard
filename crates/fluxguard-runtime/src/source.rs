@@ -141,6 +141,11 @@ pub trait BudgetSource: Send + Sync {
                         Ok(snapshot) => {
                             updates.send(SourceState::ready(snapshot)).map_err(|_| SourceError::Other)?;
                         }
+                        // A source that reports itself unsupported will not
+                        // become supported by polling; surface it once and stop.
+                        Err(SourceError::UnsupportedVersion) => {
+                            return Err(SourceError::UnsupportedVersion);
+                        }
                         Err(error) => {
                             let current = updates.borrow().clone();
                             updates.send(SourceState::failed(&current, error)).map_err(|_| SourceError::Other)?;
@@ -154,4 +159,19 @@ pub trait BudgetSource: Send + Sync {
     fn id(&self) -> SourceId {
         self.descriptor().id
     }
+}
+
+/// `run` strategy for sources that read a one-shot local snapshot: refresh
+/// once, publish it, then idle until cancelled.
+pub async fn publish_once(
+    source: &(impl BudgetSource + ?Sized),
+    updates: watch::Sender<SourceState>,
+    cancel: CancellationToken,
+) -> Result<(), SourceError> {
+    let snapshot = source.refresh().await?;
+    updates
+        .send(SourceState::ready(snapshot))
+        .map_err(|_| SourceError::Other)?;
+    cancel.cancelled().await;
+    Ok(())
 }

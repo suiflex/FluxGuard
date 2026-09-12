@@ -652,21 +652,11 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "current_thread")]
     async fn app_server_process_crash_is_recovered_with_bounded_restart() {
-        use std::{
-            fs,
-            os::unix::fs::PermissionsExt,
-            sync::Arc,
-            time::{SystemTime, UNIX_EPOCH},
-        };
+        use std::{fs, sync::Arc};
 
         use fluxguard_runtime::{SourceRegistry, SourceStateKind};
 
-        let suffix = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!("fluxguard-codex-{suffix}"));
-        fs::create_dir_all(&root).expect("create test directory");
+        let root = crate::test_support::test_dir("codex");
         let script_path = root.join("codex");
         let counter_path = root.join("starts");
         let counter_line = format!("COUNT_FILE={}", counter_path.display());
@@ -684,12 +674,7 @@ mod tests {
             "sleep 10",
         ]
         .join("\n");
-        fs::write(&script_path, script).expect("write test process");
-        let mut permissions = fs::metadata(&script_path)
-            .expect("script metadata")
-            .permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&script_path, permissions).expect("make executable");
+        crate::test_support::write_executable(&script_path, &script);
 
         let adapter = Arc::new(CodexAdapter::new(
             script_path.to_string_lossy().into_owned(),

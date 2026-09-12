@@ -116,25 +116,23 @@ allow / advise / block
 
 Blocking behavior must be opt-in.
 
-## Google Antigravity
+## Google Antigravity & Gemini Ecosystem
 
-Antigravity supports MCP across its products.
+Antigravity spans multiple developer surfaces across Google's AI developer platform:
 
-Its CLI exposes `/usage` or `/quota` interactively.
+1. **Antigravity CLI (`agy`)**: Lightweight terminal interface for agent interaction, slash commands, and background tasks. Configured in `~/.gemini/antigravity-cli/settings.json`.
+2. **Antigravity IDE**: Standalone AI-first IDE built on a VS Code fork with inline code lenses, tab completions, and `.agents/` workspace customizations.
+3. **Antigravity 2.0 Desktop App**: Standalone Electron application for parallel agent orchestration, auxiliary panes, and scheduled tasks. Uses `~/.gemini/antigravity/mcp_config.json`.
+4. **Gemini CLI (`gemini`)**: Developer CLI for direct Gemini interactions, configured in `~/.gemini/`.
+5. **Google & Gemini Credentials**: Supports `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, Vertex AI credentials, and Google OAuth profiles in `~/.gemini/google_accounts.json`.
 
-The first integration should use MCP for advice.
-
-Do not parse an interactive TUI unless Google publishes a stable machine-readable mode or SDK endpoint.
-
-Antigravity also supports project/global skills and rules. A future skill can instruct the agent when to consult resource pressure.
+`fluxguard doctor` detects which of these surfaces are installed. No stable machine-readable quota surface has been confirmed, so the adapter reports `source_unsupported` rather than inventing quota windows; do not parse the interactive `/usage` / `/quota` TUI. Advisory advice is consumed via local MCP stdio or skill/hook workflows.
 
 ## GitHub Copilot
 
-GitHub's Copilot SDK exposes account quota information through `account.getQuota`, including remaining percentage and reset date.
+The Copilot CLI's headless server mode is the transport the official SDKs use. FluxGuard spawns `copilot --headless --stdio --no-auto-update`, performs the `connect` handshake (falling back when an older CLI lacks it), and calls `account.getQuota`, which returns remaining percentage, used/entitled requests, and reset date per quota type.
 
-Investigate whether the Rust process can consume that supported SDK surface directly or through a small companion process without compromising packaging.
-
-This is a strong candidate for the second exact-quota adapter.
+Enable it with `clients.copilot.enabled = true`; `clients.copilot.command` defaults to `copilot`.
 
 ## OpenCode
 

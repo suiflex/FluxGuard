@@ -221,12 +221,7 @@ impl BudgetSource for OpenCodeAdapter {
         updates: watch::Sender<fluxguard_runtime::SourceState>,
         cancel: CancellationToken,
     ) -> Result<(), SourceError> {
-        let snapshot = self.refresh().await?;
-        updates
-            .send(fluxguard_runtime::SourceState::ready(snapshot))
-            .map_err(|_| SourceError::Other)?;
-        cancel.cancelled().await;
-        Ok(())
+        fluxguard_runtime::publish_once(self, updates, cancel).await
     }
 }
 
@@ -282,13 +277,8 @@ mod tests {
 
     #[test]
     fn official_stats_json_normalizes_local_usage_without_claiming_quota() {
-        let payload = r#"{
-            "inputTokens": 1200,
-            "outputTokens": 300,
-            "cost": 0.12
-        }"#;
-        let stats: OpenCodeStats = serde_json::from_str(payload).expect("fixture");
-        let snapshot = OpenCodeAdapter::normalize(stats).expect("normalize");
+        let payload = include_str!("../../../tests/fixtures/opencode/stats_basic.json");
+        let snapshot = crate::support::fixture_snapshot(payload, OpenCodeAdapter::normalize);
 
         assert_eq!(snapshot.windows.len(), 3);
         assert!(snapshot

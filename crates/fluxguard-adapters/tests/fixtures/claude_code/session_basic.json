@@ -1,0 +1,6 @@
+{
+  "sessionInputTokens": 15000,
+  "sessionOutputTokens": 3500,
+  "contextTokens": 80000,
+  "contextLimit": 200000
+}

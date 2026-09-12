@@ -1,0 +1,6 @@
+{
+  "requestsPerSecondLimit": 10,
+  "requestsPerSecondUsed": 2,
+  "tokensPerMinuteLimit": 600000,
+  "tokensPerMinuteUsed": 120000
+}

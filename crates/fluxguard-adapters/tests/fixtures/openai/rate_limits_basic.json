@@ -1,0 +1,10 @@
+{
+  "requestsLimit": 10000,
+  "requestsRemaining": 8500,
+  "requestsResetSeconds": 0.12,
+  "tokensLimit": 2000000,
+  "tokensRemaining": 1800000,
+  "tokensResetSeconds": 0.45,
+  "currentSpendUsd": 15.2,
+  "spendLimitUsd": 100
+}

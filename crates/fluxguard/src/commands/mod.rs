@@ -9,7 +9,15 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use fluxguard_adapters::clients::{codex::CodexAdapter, opencode::OpenCodeAdapter};
+use fluxguard_adapters::{
+    clients::{
+        antigravity::AntigravityAdapter, claude_code::ClaudeCodeAdapter, codex::CodexAdapter,
+        copilot::CopilotAdapter, cursor::CursorAdapter, opencode::OpenCodeAdapter,
+    },
+    providers::{
+        anthropic::AnthropicAdapter, openai::OpenAiAdapter, xai::XaiAdapter, zai::ZaiAdapter,
+    },
+};
 use fluxguard_core::{
     advise, assess_combined, estimate_operation_cost, CombinedSnapshot, OperationImportance,
     OperationKind, OperationProfile, PressureLevel,
@@ -528,48 +536,154 @@ async fn sources(config: Config) -> Result<(), CliError> {
 }
 
 async fn doctor(config: Config) -> Result<(), CliError> {
-    println!("client.codex");
-    if config.clients.codex.enabled {
-        let codex = CodexAdapter::with_default_timeout(config.clients.codex.command);
-        match codex.probe().await {
-            Ok(report) => {
-                println!("  binary: {}", probe_binary_name(&report.state));
-                println!("  state: {}", probe_state_name(&report.state));
-            }
-            Err(_) => {
-                println!("  binary: not found");
-                println!("  state: unavailable");
-                println!("  action: install Codex or set clients.codex.command");
-            }
-        }
-    } else {
-        println!("  state: disabled");
-    }
+    const DETECTION_ONLY: bool = true;
+    let clients = &config.clients;
+    let providers = &config.providers;
 
-    println!("client.opencode");
-    if config.clients.opencode.enabled {
-        let opencode = OpenCodeAdapter::with_default_timeout(config.clients.opencode.command);
-        match opencode.probe().await {
-            Ok(report) => {
+    doctor_source(
+        "client.codex",
+        clients.codex.enabled,
+        &CodexAdapter::with_default_timeout(clients.codex.command.clone()),
+        Some("install Codex or set clients.codex.command"),
+        !DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "client.opencode",
+        clients.opencode.enabled,
+        &OpenCodeAdapter::with_default_timeout(clients.opencode.command.clone()),
+        Some("install OpenCode or set clients.opencode.command"),
+        !DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "client.copilot",
+        clients.copilot.enabled,
+        &CopilotAdapter::with_default_timeout(clients.copilot.command.clone()),
+        Some("install GitHub Copilot CLI (copilot) or set clients.copilot.command"),
+        !DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "client.cursor",
+        clients.cursor.enabled,
+        &CursorAdapter::new(),
+        None,
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "client.claude_code",
+        clients.claude_code.enabled,
+        &ClaudeCodeAdapter::new(clients.claude_code.command.clone()),
+        Some("install Claude Code CLI or set clients.claude_code.command"),
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+
+    let antigravity = AntigravityAdapter::new(clients.antigravity.command.clone());
+    let surfaces = if clients.antigravity.enabled {
+        antigravity.probe_surfaces().await
+    } else {
+        Vec::new()
+    };
+    let surfaces_line: Vec<String> = (!surfaces.is_empty())
+        .then(|| format!("surfaces: {}", surfaces.join(", ")))
+        .into_iter()
+        .collect();
+    doctor_source(
+        "client.antigravity",
+        clients.antigravity.enabled,
+        &antigravity,
+        Some("install Antigravity CLI (agy), Antigravity IDE, or set GEMINI_API_KEY"),
+        DETECTION_ONLY,
+        &surfaces_line,
+    )
+    .await;
+
+    doctor_source(
+        "provider.openai",
+        providers.openai.enabled,
+        &OpenAiAdapter::new(),
+        None,
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "provider.anthropic",
+        providers.anthropic.enabled,
+        &AnthropicAdapter::new(),
+        None,
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "provider.xai",
+        providers.xai.enabled,
+        &XaiAdapter::new(),
+        None,
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+    doctor_source(
+        "provider.zai",
+        providers.zai.enabled,
+        &ZaiAdapter::new(),
+        None,
+        DETECTION_ONLY,
+        &[],
+    )
+    .await;
+
+    Ok(())
+}
+
+/// Prints one doctor block. `install_hint` marks binary-backed sources: it adds
+/// the `binary:` line and the `action:` hint when the probe itself fails.
+async fn doctor_source(
+    name: &str,
+    enabled: bool,
+    source: &dyn BudgetSource,
+    install_hint: Option<&str>,
+    detection_only: bool,
+    extra_lines: &[String],
+) {
+    println!("{name}");
+    if !enabled {
+        println!("  state: disabled");
+        return;
+    }
+    if detection_only {
+        println!("  data: unsupported (detection only; no verified quota surface yet)");
+    }
+    match source.probe().await {
+        Ok(report) => {
+            if install_hint.is_some() {
                 println!("  binary: {}", probe_binary_name(&report.state));
-                println!("  state: {}", probe_state_name(&report.state));
             }
-            Err(_) => {
-                println!("  binary: not found");
-                println!("  state: unavailable");
-                println!("  action: install OpenCode or set clients.opencode.command");
+            println!("  state: {}", probe_state_name(&report.state));
+            for line in extra_lines {
+                println!("  {line}");
             }
         }
-    } else {
-        println!("  state: disabled");
+        Err(_) => {
+            if let Some(hint) = install_hint {
+                println!("  binary: not found");
+                println!("  state: unavailable");
+                println!("  action: {hint}");
+            } else {
+                println!("  state: unavailable");
+            }
+        }
     }
-    println!("client.claude_code");
-    println!("  state: unsupported");
-    println!("  action: use MCP/manual budgets; no stable official subscription quota surface");
-    println!("client.antigravity");
-    println!("  state: unsupported");
-    println!("  action: use MCP/manual budgets; interactive quota UI is not parsed");
-    Ok(())
 }
 
 fn build_registry(config: &Config) -> Result<SourceRegistry, CliError> {
@@ -586,6 +700,52 @@ fn build_registry(config: &Config) -> Result<SourceRegistry, CliError> {
             .register(Arc::new(OpenCodeAdapter::with_default_timeout(
                 config.clients.opencode.command.clone(),
             )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.copilot.enabled {
+        registry
+            .register(Arc::new(CopilotAdapter::with_default_timeout(
+                config.clients.copilot.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.cursor.enabled {
+        registry
+            .register(Arc::new(CursorAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.claude_code.enabled {
+        registry
+            .register(Arc::new(ClaudeCodeAdapter::new(
+                config.clients.claude_code.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.clients.antigravity.enabled {
+        registry
+            .register(Arc::new(AntigravityAdapter::new(
+                config.clients.antigravity.command.clone(),
+            )))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.openai.enabled {
+        registry
+            .register(Arc::new(OpenAiAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.anthropic.enabled {
+        registry
+            .register(Arc::new(AnthropicAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.xai.enabled {
+        registry
+            .register(Arc::new(XaiAdapter::new()))
+            .map_err(|_| CliError::Registration)?;
+    }
+    if config.providers.zai.enabled {
+        registry
+            .register(Arc::new(ZaiAdapter::new()))
             .map_err(|_| CliError::Registration)?;
     }
     for snapshot in config.manual_snapshots()? {
