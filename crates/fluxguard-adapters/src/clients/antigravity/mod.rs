@@ -162,7 +162,11 @@ impl AntigravityAdapter {
         Ok(BudgetSnapshot {
             source: descriptor,
             account_scope: None,
-            availability: Availability::Allowed,
+            availability: if windows.is_empty() {
+                Availability::Unknown
+            } else {
+                Availability::Allowed
+            },
             windows,
             observed_at: now,
             warnings,
@@ -213,11 +217,6 @@ impl AntigravityAdapter {
             if gemini_dir.join("antigravity").exists() {
                 surfaces.push("antigravity-app");
             }
-            if gemini_dir.join("google_accounts.json").exists()
-                || gemini_dir.join("oauth_creds.json").exists()
-            {
-                surfaces.push("google-oauth");
-            }
             if gemini_dir.join("settings.json").exists() {
                 surfaces.push("gemini-settings");
             }
@@ -267,21 +266,19 @@ impl BudgetSource for AntigravityAdapter {
         }
     }
 
+    // ponytail: no verified machine-readable quota surface yet, so report
+    // unsupported instead of publishing an empty "allowed" snapshot. Wire a
+    // real fetch here once an official surface exists.
     async fn refresh(&self) -> Result<BudgetSnapshot, SourceError> {
-        Self::normalize(AntigravityQuotaStats::default())
+        Err(SourceError::UnsupportedVersion)
     }
 
     async fn run(
         &self,
-        updates: watch::Sender<fluxguard_runtime::SourceState>,
-        cancel: CancellationToken,
+        _updates: watch::Sender<fluxguard_runtime::SourceState>,
+        _cancel: CancellationToken,
     ) -> Result<(), SourceError> {
-        let snapshot = self.refresh().await?;
-        updates
-            .send(fluxguard_runtime::SourceState::ready(snapshot))
-            .map_err(|_| SourceError::Other)?;
-        cancel.cancelled().await;
-        Ok(())
+        self.refresh().await.map(|_| ())
     }
 }
 
@@ -310,5 +307,18 @@ mod tests {
         let weekly = &snapshot.windows[1];
         assert_eq!(weekly.id.as_str(), "client.antigravity.weekly");
         assert_eq!(weekly.remaining_percent, Some(60.0));
+    }
+    #[test]
+    fn empty_stats_stay_unknown() {
+        let snapshot =
+            AntigravityAdapter::normalize(AntigravityQuotaStats::default()).expect("normalize");
+        assert!(snapshot.windows.is_empty());
+        assert!(matches!(snapshot.availability, Availability::Unknown));
+    }
+
+    #[tokio::test]
+    async fn refresh_reports_unsupported_until_a_real_surface_exists() {
+        let result = AntigravityAdapter::new("agy").refresh().await;
+        assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
     }
 }
