@@ -1,5 +1,7 @@
 mod commands;
 mod config;
+mod theme;
+mod update;
 
 use clap::Parser;
 

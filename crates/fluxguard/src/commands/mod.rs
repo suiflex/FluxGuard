@@ -28,6 +28,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 use crate::config::{Config, ConfigError};
+use crate::theme;
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -43,6 +44,10 @@ pub enum CliError {
     Server(String),
     #[error("install requires a TTY when --client is omitted")]
     InstallRequiresTty,
+    #[error("could not determine the latest release")]
+    UpdateCheckUnavailable,
+    #[error("the installer did not complete")]
+    UpdateFailed,
     #[error("unsupported client: {0}")]
     UnsupportedClient(String),
     #[error("MCP client configuration is invalid")]
@@ -109,6 +114,17 @@ pub enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    /// Update FluxGuard to the latest release, or only check for one.
+    ///
+    /// Running `fluxguard update` installs a newer release when one exists;
+    /// `--check` reports without installing anything.
+    Update {
+        /// Only report whether a newer release exists
+        #[arg(long)]
+        check: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -117,6 +133,11 @@ pub enum ConfigCommand {
 }
 
 pub async fn run(cli: Cli) -> Result<(), CliError> {
+    // Updating must work even when the configuration on disk is the thing that
+    // needs fixing, so it runs before the config is read.
+    if let Command::Update { check, json } = cli.command {
+        return update(check, json);
+    }
     let config = Config::load(cli.config.as_deref())?;
     match cli.command {
         Command::Serve => serve(config).await,
@@ -144,7 +165,104 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
             println!("configuration valid");
             Ok(())
         }
+        Command::Update { .. } => unreachable!("handled before the configuration is loaded"),
     }
+}
+
+fn update(check_only: bool, json: bool) -> Result<(), CliError> {
+    let home = PathBuf::from(std::env::var_os("HOME").ok_or(CliError::InvalidClientConfig)?);
+    let current = crate::update::current_version();
+    let Some(check) = crate::update::check_for_update(&home, true) else {
+        // The remote could not be reached and nothing was cached: unknown, not
+        // "up to date".
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "unknown",
+                    "current": current,
+                }))?
+            );
+        } else {
+            println!(
+                "{}",
+                theme::point("release check unavailable", theme::AMBER)
+            );
+            println!("  current: {current}");
+            println!("  action: check your network, or install manually:");
+            println!("          {}", crate::update::INSTALL_COMMAND);
+        }
+        return Err(CliError::UpdateCheckUnavailable);
+    };
+
+    if !check.update_available {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "up_to_date",
+                    "current": check.current,
+                    "latest": check.latest,
+                    "update_available": false,
+                }))?
+            );
+        } else {
+            println!("{}", theme::point("up to date", theme::ACCENT));
+            println!("  current: {}", check.current);
+        }
+        return Ok(());
+    }
+
+    if check_only {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "status": "update_available",
+                    "current": check.current,
+                    "latest": check.latest,
+                    "update_available": true,
+                }))?
+            );
+        } else {
+            println!("{}", theme::point("update available", theme::AMBER));
+            println!("  current: {}", check.current);
+            println!("  latest:  {}", check.latest);
+            println!("  action: run `fluxguard update` to install it");
+        }
+        return Ok(());
+    }
+
+    if !json {
+        println!(
+            "{}",
+            theme::step(
+                "update",
+                &[format!("{} → {}", check.current, check.latest)],
+                theme::ACCENT,
+            )
+        );
+    }
+    let status = crate::update::run_install_command().map_err(|_| CliError::UpdateFailed)?;
+    if !status.success() {
+        return Err(CliError::UpdateFailed);
+    }
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "status": "updated",
+                "previous": check.current,
+                "latest": check.latest,
+            }))?
+        );
+    } else {
+        println!(
+            "{}",
+            theme::point(&format!("installed {}", check.latest), theme::ACCENT)
+        );
+    }
+    Ok(())
 }
 fn install(
     client: Option<String>,
