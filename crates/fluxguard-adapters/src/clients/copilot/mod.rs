@@ -4,8 +4,8 @@ use ::time::{format_description::well_known::Rfc3339, Duration as SignedDuration
 use async_trait::async_trait;
 use fluxguard_core::{
     Applicability, Availability, BudgetSnapshot, BudgetWindow, DecimalValue, Freshness,
-    MetricDimension, Provenance, SnapshotWarning, SourceCapabilities, SourceDescriptor, SourceId,
-    SourceKind, SourceQuality, WindowId,
+    MetricDimension, Provenance, SnapshotWarning, SourceCapabilities, SourceDescriptor, SourceKind,
+    SourceQuality, WindowId,
 };
 use fluxguard_runtime::{BudgetSource, ProbeReport, ProbeState, SourceError};
 use serde::Deserialize;
@@ -13,6 +13,8 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, ChildStdout, Command};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+
+use crate::support;
 
 const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 const SOURCE_ID: &str = "client.copilot";
@@ -83,13 +85,12 @@ struct RpcError {
 }
 
 fn descriptor() -> SourceDescriptor {
-    SourceDescriptor {
-        id: SourceId::new(SOURCE_ID).expect("static source id is valid"),
-        kind: SourceKind::Client,
-        display_name: "GitHub Copilot".into(),
-        adapter_version: env!("CARGO_PKG_VERSION").into(),
-        source_quality: SourceQuality::OfficialStructured,
-        capabilities: SourceCapabilities {
+    support::descriptor(
+        SOURCE_ID,
+        SourceKind::Client,
+        "GitHub Copilot",
+        SourceQuality::OfficialStructured,
+        SourceCapabilities {
             supports_snapshot: true,
             supports_push_updates: false,
             supports_reset_time: true,
@@ -97,7 +98,7 @@ fn descriptor() -> SourceDescriptor {
             supports_model_scope: false,
             supports_cost: false,
         },
-    }
+    )
 }
 
 impl CopilotAdapter {
