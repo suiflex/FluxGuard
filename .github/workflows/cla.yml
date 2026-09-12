@@ -30,9 +30,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path-to-signatures: signatures/version1/cla.json
-          path-to-document: https://github.com/suiflex/FluxGuard/blob/main/CLA.md
+          path-to-document: https://github.com/suiflex/FluxGuard/blob/develop/CLA.md
           branch: cla-signatures
-          allowlist: '*[bot]'
+          allowlist: mulhamna,badrus123,*[bot]
           custom-notsigned-prcomment: >
             Thanks for your contribution! Before we can merge, please read our
             [Contributor License Agreement](https://github.com/suiflex/FluxGuard/blob/main/CLA.md)
