@@ -188,115 +188,124 @@ impl Config {
     }
 
     fn apply_env_overrides(&mut self) -> Result<(), ConfigError> {
-        if let Some(value) = read_env("FLUXGUARD_PRESSURE_GUARDED_REMAINING_PERCENT") {
-            self.pressure.guarded_remaining_percent =
-                parse_env_f64("FLUXGUARD_PRESSURE_GUARDED_REMAINING_PERCENT", value)?;
+        let percents = [
+            (
+                "FLUXGUARD_PRESSURE_GUARDED_REMAINING_PERCENT",
+                &mut self.pressure.guarded_remaining_percent,
+            ),
+            (
+                "FLUXGUARD_PRESSURE_CONSERVE_REMAINING_PERCENT",
+                &mut self.pressure.conserve_remaining_percent,
+            ),
+            (
+                "FLUXGUARD_PRESSURE_CRITICAL_REMAINING_PERCENT",
+                &mut self.pressure.critical_remaining_percent,
+            ),
+            (
+                "FLUXGUARD_PRESSURE_EMERGENCY_REMAINING_PERCENT",
+                &mut self.pressure.emergency_remaining_percent,
+            ),
+        ];
+        for (name, target) in percents {
+            if let Some(value) = read_env(name) {
+                *target = parse_env_f64(name, value)?;
+            }
         }
-        if let Some(value) = read_env("FLUXGUARD_PRESSURE_CONSERVE_REMAINING_PERCENT") {
-            self.pressure.conserve_remaining_percent =
-                parse_env_f64("FLUXGUARD_PRESSURE_CONSERVE_REMAINING_PERCENT", value)?;
+
+        let flags = [
+            (
+                "FLUXGUARD_CLIENTS_CODEX_ENABLED",
+                &mut self.clients.codex.enabled,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_OPENCODE_ENABLED",
+                &mut self.clients.opencode.enabled,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_COPILOT_ENABLED",
+                &mut self.clients.copilot.enabled,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_CURSOR_ENABLED",
+                &mut self.clients.cursor.enabled,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_CLAUDE_CODE_ENABLED",
+                &mut self.clients.claude_code.enabled,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_ANTIGRAVITY_ENABLED",
+                &mut self.clients.antigravity.enabled,
+            ),
+            (
+                "FLUXGUARD_PROVIDERS_OPENAI_ENABLED",
+                &mut self.providers.openai.enabled,
+            ),
+            (
+                "FLUXGUARD_PROVIDERS_ANTHROPIC_ENABLED",
+                &mut self.providers.anthropic.enabled,
+            ),
+            (
+                "FLUXGUARD_PROVIDERS_XAI_ENABLED",
+                &mut self.providers.xai.enabled,
+            ),
+            (
+                "FLUXGUARD_PROVIDERS_ZAI_ENABLED",
+                &mut self.providers.zai.enabled,
+            ),
+        ];
+        for (name, target) in flags {
+            if let Some(value) = read_env(name) {
+                *target = value
+                    .parse()
+                    .map_err(|_| invalid_env(name, "expected true or false"))?;
+            }
         }
-        if let Some(value) = read_env("FLUXGUARD_PRESSURE_CRITICAL_REMAINING_PERCENT") {
-            self.pressure.critical_remaining_percent =
-                parse_env_f64("FLUXGUARD_PRESSURE_CRITICAL_REMAINING_PERCENT", value)?;
+
+        let commands = [
+            (
+                "FLUXGUARD_CLIENTS_CODEX_COMMAND",
+                &mut self.clients.codex.command,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_OPENCODE_COMMAND",
+                &mut self.clients.opencode.command,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_COPILOT_COMMAND",
+                &mut self.clients.copilot.command,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_CLAUDE_CODE_COMMAND",
+                &mut self.clients.claude_code.command,
+            ),
+            (
+                "FLUXGUARD_CLIENTS_ANTIGRAVITY_COMMAND",
+                &mut self.clients.antigravity.command,
+            ),
+        ];
+        for (name, target) in commands {
+            if let Some(value) = read_env(name) {
+                *target = value;
+            }
         }
-        if let Some(value) = read_env("FLUXGUARD_PRESSURE_EMERGENCY_REMAINING_PERCENT") {
-            self.pressure.emergency_remaining_percent =
-                parse_env_f64("FLUXGUARD_PRESSURE_EMERGENCY_REMAINING_PERCENT", value)?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CODEX_ENABLED") {
-            self.clients.codex.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_CODEX_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CODEX_COMMAND") {
-            self.clients.codex.command = value;
-        }
+
         if let Some(value) = read_env("FLUXGUARD_CLIENTS_CODEX_REFRESH_INTERVAL_SECONDS") {
-            self.clients.codex.refresh_interval_seconds =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_CODEX_REFRESH_INTERVAL_SECONDS".into(),
-                    reason: "expected a positive integer".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_OPENCODE_ENABLED") {
-            self.clients.opencode.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_OPENCODE_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_OPENCODE_COMMAND") {
-            self.clients.opencode.command = value;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_COPILOT_ENABLED") {
-            self.clients.copilot.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_COPILOT_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_COPILOT_COMMAND") {
-            self.clients.copilot.command = value;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CURSOR_ENABLED") {
-            self.clients.cursor.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_CURSOR_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CLAUDE_CODE_ENABLED") {
-            self.clients.claude_code.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_CLAUDE_CODE_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_CLAUDE_CODE_COMMAND") {
-            self.clients.claude_code.command = value;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_ANTIGRAVITY_ENABLED") {
-            self.clients.antigravity.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_CLIENTS_ANTIGRAVITY_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_CLIENTS_ANTIGRAVITY_COMMAND") {
-            self.clients.antigravity.command = value;
-        }
-        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_OPENAI_ENABLED") {
-            self.providers.openai.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_PROVIDERS_OPENAI_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_ANTHROPIC_ENABLED") {
-            self.providers.anthropic.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_PROVIDERS_ANTHROPIC_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_XAI_ENABLED") {
-            self.providers.xai.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_PROVIDERS_XAI_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
-        }
-        if let Some(value) = read_env("FLUXGUARD_PROVIDERS_ZAI_ENABLED") {
-            self.providers.zai.enabled =
-                value.parse().map_err(|_| ConfigError::InvalidEnvironment {
-                    name: "FLUXGUARD_PROVIDERS_ZAI_ENABLED".into(),
-                    reason: "expected true or false".into(),
-                })?;
+            self.clients.codex.refresh_interval_seconds = value.parse().map_err(|_| {
+                invalid_env(
+                    "FLUXGUARD_CLIENTS_CODEX_REFRESH_INTERVAL_SECONDS",
+                    "expected a positive integer",
+                )
+            })?;
         }
         Ok(())
+    }
+}
+
+fn invalid_env(name: &str, reason: &str) -> ConfigError {
+    ConfigError::InvalidEnvironment {
+        name: name.into(),
+        reason: reason.into(),
     }
 }
 
