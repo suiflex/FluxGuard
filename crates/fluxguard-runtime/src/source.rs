@@ -141,6 +141,11 @@ pub trait BudgetSource: Send + Sync {
                         Ok(snapshot) => {
                             updates.send(SourceState::ready(snapshot)).map_err(|_| SourceError::Other)?;
                         }
+                        // A source that reports itself unsupported will not
+                        // become supported by polling; surface it once and stop.
+                        Err(SourceError::UnsupportedVersion) => {
+                            return Err(SourceError::UnsupportedVersion);
+                        }
                         Err(error) => {
                             let current = updates.borrow().clone();
                             updates.send(SourceState::failed(&current, error)).map_err(|_| SourceError::Other)?;
