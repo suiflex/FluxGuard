@@ -550,21 +550,12 @@ mod tests {
     #[cfg(unix)]
     mod fake_cli {
         use super::*;
-        use std::{
-            fs,
-            os::unix::fs::PermissionsExt,
-            time::{SystemTime, UNIX_EPOCH},
-        };
+        use std::fs;
 
         /// Writes a shell script that answers with the given JSON-RPC bodies, in order,
         /// using Content-Length framing, then lingers until killed.
         fn script(replies: &[&str]) -> (std::path::PathBuf, std::path::PathBuf) {
-            let suffix = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos();
-            let root = std::env::temp_dir().join(format!("fluxguard-copilot-{suffix}"));
-            fs::create_dir_all(&root).expect("create test directory");
+            let root = crate::support::test_dir("copilot");
             let path = root.join("copilot");
             let mut lines = vec![
                 "#!/bin/sh".to_string(),
@@ -576,10 +567,7 @@ mod tests {
                 lines.push(format!("reply '{reply}'"));
             }
             lines.push("sleep 10".to_string());
-            fs::write(&path, lines.join("\n")).expect("write script");
-            let mut permissions = fs::metadata(&path).expect("metadata").permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(&path, permissions).expect("chmod");
+            crate::support::write_executable(&path, &lines.join("\n"));
             (root, path)
         }
 
