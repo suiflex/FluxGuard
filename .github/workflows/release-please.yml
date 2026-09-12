@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches: [develop]
 
 permissions:
   contents: write
@@ -24,13 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: develop
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
       - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          target-branch: main
+          target-branch: develop
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
