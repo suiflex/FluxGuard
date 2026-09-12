@@ -176,69 +176,64 @@ impl AntigravityAdapter {
     pub async fn probe_surfaces(&self) -> Vec<&'static str> {
         let mut surfaces = Vec::new();
 
-        if let Ok(output) = tokio::process::Command::new(&self.command)
-            .args(["--version"])
-            .output()
-            .await
-        {
-            if output.status.success() {
-                surfaces.push("agy-cli");
-            }
-        }
-
-        if let Ok(output) = tokio::process::Command::new("gemini")
-            .args(["--version"])
-            .output()
-            .await
-        {
-            if output.status.success() {
-                surfaces.push("gemini-cli");
-            }
-        }
-
-        if let Ok(output) = tokio::process::Command::new("antigravity")
-            .args(["--version"])
-            .output()
-            .await
-        {
-            if output.status.success() {
-                surfaces.push("antigravity-bin");
+        for (command, surface) in [
+            (self.command.as_str(), "agy-cli"),
+            ("gemini", "gemini-cli"),
+            ("antigravity", "antigravity-bin"),
+        ] {
+            if binary_responds(command).await {
+                surfaces.push(surface);
             }
         }
 
         if let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
             let gemini_dir = home.join(".gemini");
-            if gemini_dir.join("antigravity-cli").exists() && !surfaces.contains(&"agy-cli") {
-                surfaces.push("antigravity-cli");
-            }
-            if gemini_dir.join("antigravity-ide").exists() || home.join(".antigravity").exists() {
-                surfaces.push("antigravity-ide");
-            }
-            if gemini_dir.join("antigravity").exists() {
-                surfaces.push("antigravity-app");
-            }
-            if gemini_dir.join("settings.json").exists() {
-                surfaces.push("gemini-settings");
+            let installs = [
+                (vec![gemini_dir.join("antigravity-cli")], "antigravity-cli"),
+                (
+                    vec![
+                        gemini_dir.join("antigravity-ide"),
+                        home.join(".antigravity"),
+                    ],
+                    "antigravity-ide",
+                ),
+                (vec![gemini_dir.join("antigravity")], "antigravity-app"),
+                (vec![gemini_dir.join("settings.json")], "gemini-settings"),
+            ];
+            for (paths, surface) in installs {
+                // The bundled CLI is already reported when `agy` answers directly.
+                let shadowed = surface == "antigravity-cli" && surfaces.contains(&"agy-cli");
+                if !shadowed && paths.iter().any(|path| path.exists()) {
+                    surfaces.push(surface);
+                }
             }
         }
 
-        if std::env::var_os("GEMINI_API_KEY").is_some() {
-            surfaces.push("gemini-api-key");
-        }
-        if std::env::var_os("GOOGLE_API_KEY").is_some() {
-            surfaces.push("google-api-key");
-        }
-        if std::env::var_os("GOOGLE_GENAI_API_KEY").is_some() {
-            surfaces.push("google-genai-key");
-        }
-        if std::env::var_os("VERTEX_API_KEY").is_some()
-            || std::env::var_os("GOOGLE_APPLICATION_CREDENTIALS").is_some()
-        {
-            surfaces.push("vertex-credentials");
+        let env_surfaces: [(&[&str], &str); 4] = [
+            (&["GEMINI_API_KEY"], "gemini-api-key"),
+            (&["GOOGLE_API_KEY"], "google-api-key"),
+            (&["GOOGLE_GENAI_API_KEY"], "google-genai-key"),
+            (
+                &["VERTEX_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"],
+                "vertex-credentials",
+            ),
+        ];
+        for (vars, surface) in env_surfaces {
+            if vars.iter().any(|var| std::env::var_os(var).is_some()) {
+                surfaces.push(surface);
+            }
         }
 
         surfaces
     }
+}
+
+async fn binary_responds(command: &str) -> bool {
+    tokio::process::Command::new(command)
+        .args(["--version"])
+        .output()
+        .await
+        .is_ok_and(|output| output.status.success())
 }
 
 impl Default for AntigravityAdapter {
