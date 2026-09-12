@@ -186,7 +186,11 @@ impl ClaudeCodeAdapter {
         Ok(BudgetSnapshot {
             source: descriptor,
             account_scope: None,
-            availability: Availability::Allowed,
+            availability: if windows.is_empty() {
+                Availability::Unknown
+            } else {
+                Availability::Allowed
+            },
             windows,
             observed_at: now,
             warnings,
@@ -236,21 +240,19 @@ impl BudgetSource for ClaudeCodeAdapter {
         }
     }
 
+    // ponytail: no verified machine-readable quota surface yet, so report
+    // unsupported instead of publishing an empty "allowed" snapshot. Wire a
+    // real fetch here once an official surface exists.
     async fn refresh(&self) -> Result<BudgetSnapshot, SourceError> {
-        Self::normalize(ClaudeCodeStats::default())
+        Err(SourceError::UnsupportedVersion)
     }
 
     async fn run(
         &self,
-        updates: watch::Sender<fluxguard_runtime::SourceState>,
-        cancel: CancellationToken,
+        _updates: watch::Sender<fluxguard_runtime::SourceState>,
+        _cancel: CancellationToken,
     ) -> Result<(), SourceError> {
-        let snapshot = self.refresh().await?;
-        updates
-            .send(fluxguard_runtime::SourceState::ready(snapshot))
-            .map_err(|_| SourceError::Other)?;
-        cancel.cancelled().await;
-        Ok(())
+        self.refresh().await.map(|_| ())
     }
 }
 
@@ -275,5 +277,17 @@ mod tests {
         assert_eq!(ctx_window.used.map(|v| v.0), Some(80_000.0));
         assert_eq!(ctx_window.limit.map(|v| v.0), Some(200_000.0));
         assert_eq!(ctx_window.remaining_percent, Some(60.0));
+    }
+    #[test]
+    fn empty_stats_stay_unknown() {
+        let snapshot = ClaudeCodeAdapter::normalize(ClaudeCodeStats::default()).expect("normalize");
+        assert!(snapshot.windows.is_empty());
+        assert!(matches!(snapshot.availability, Availability::Unknown));
+    }
+
+    #[tokio::test]
+    async fn refresh_reports_unsupported_until_a_real_surface_exists() {
+        let result = ClaudeCodeAdapter::new("claude").refresh().await;
+        assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
     }
 }
