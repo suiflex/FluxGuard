@@ -1,14 +1,16 @@
-use ::time::{Duration as SignedDuration, OffsetDateTime};
+use ::time::OffsetDateTime;
 use async_trait::async_trait;
 use fluxguard_core::{
-    Applicability, Availability, BudgetSnapshot, BudgetWindow, Freshness, MetricDimension,
-    Provenance, SnapshotWarning, SourceCapabilities, SourceDescriptor, SourceId, SourceKind,
-    SourceQuality, WindowId,
+    BudgetSnapshot, MetricDimension, SourceDescriptor, SourceKind, SourceQuality,
 };
 use fluxguard_runtime::{BudgetSource, ProbeReport, ProbeState, SourceError};
 use serde::Deserialize;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
+
+use crate::support::{self, WindowSpec};
+
+const OBSERVED_VIA: &str = "antigravity_quota";
 
 /// Google Antigravity client quota and telemetry adapter.
 #[derive(Clone, Debug)]
@@ -34,143 +36,81 @@ pub struct AntigravityQuotaStats {
     pub weekly_resets_at_unix: Option<i64>,
 }
 
+fn descriptor() -> SourceDescriptor {
+    support::descriptor(
+        "client.antigravity",
+        SourceKind::Client,
+        "Google Antigravity",
+        SourceQuality::OfficialTelemetry,
+        support::capabilities(true, false),
+    )
+}
+
+fn remaining_percent(remaining: Option<f64>, used: Option<f64>) -> Option<f64> {
+    remaining.or_else(|| used.map(|used| (100.0 - used).clamp(0.0, 100.0)))
+}
+
+fn unix(value: Option<i64>) -> Option<OffsetDateTime> {
+    value.and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok())
+}
+
 impl AntigravityAdapter {
     pub fn new(command: impl Into<String>) -> Self {
-        let id = SourceId::new("client.antigravity").expect("static source id is valid");
         Self {
             command: command.into(),
-            descriptor: SourceDescriptor {
-                id,
-                kind: SourceKind::Client,
-                display_name: "Google Antigravity".into(),
-                adapter_version: env!("CARGO_PKG_VERSION").into(),
-                source_quality: SourceQuality::OfficialTelemetry,
-                capabilities: SourceCapabilities {
-                    supports_snapshot: true,
-                    supports_push_updates: false,
-                    supports_reset_time: true,
-                    supports_exact_remaining_percent: true,
-                    supports_model_scope: true,
-                    supports_cost: false,
-                },
-            },
+            descriptor: descriptor(),
         }
     }
 
     pub fn normalize(stats: AntigravityQuotaStats) -> Result<BudgetSnapshot, SourceError> {
-        let source_id =
-            SourceId::new("client.antigravity").map_err(|_| SourceError::InvalidPayload)?;
-        let descriptor = SourceDescriptor {
-            id: source_id.clone(),
-            kind: SourceKind::Client,
-            display_name: "Google Antigravity".into(),
-            adapter_version: env!("CARGO_PKG_VERSION").into(),
-            source_quality: SourceQuality::OfficialTelemetry,
-            capabilities: SourceCapabilities {
-                supports_snapshot: true,
-                supports_push_updates: false,
-                supports_reset_time: true,
-                supports_exact_remaining_percent: true,
-                supports_model_scope: true,
-                supports_cost: false,
-            },
-        };
-
+        let source = descriptor();
         let now = OffsetDateTime::now_utc();
         let mut windows = Vec::new();
-        let mut warnings = Vec::new();
 
-        if let Some(rem_pct) = stats.five_hour_remaining_percent.or_else(|| {
-            stats
-                .five_hour_used_percent
-                .map(|used| (100.0 - used).clamp(0.0, 100.0))
-        }) {
-            let resets_at = stats
-                .five_hour_resets_at_unix
-                .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok());
-
-            let window_id = WindowId::new("client.antigravity.five_hour")
-                .map_err(|_| SourceError::InvalidPayload)?;
-
-            windows.push(BudgetWindow {
-                id: window_id,
-                label: Some("Five-Hour Quota".into()),
-                dimension: MetricDimension::Requests,
-                used: None,
-                limit: None,
-                remaining: None,
-                used_percent: Some((100.0 - rem_pct).clamp(0.0, 100.0)),
-                remaining_percent: Some(rem_pct),
-                window_duration_seconds: Some(5 * 3600),
-                resets_at,
-                fresh_until: Some(now + SignedDuration::seconds(60)),
-                hard_blocked: rem_pct <= 0.0,
-                applicability: Applicability::Applicable,
-                observed_at: now,
-                freshness: Freshness::Fresh,
-                provenance: Provenance {
-                    source_id: source_id.clone(),
-                    source_quality: SourceQuality::OfficialTelemetry,
-                    observed_via: Some("antigravity_quota".into()),
+        let quotas = [
+            (
+                "client.antigravity.five_hour",
+                "Five-Hour Quota",
+                5 * 3600,
+                remaining_percent(
+                    stats.five_hour_remaining_percent,
+                    stats.five_hour_used_percent,
+                ),
+                unix(stats.five_hour_resets_at_unix),
+            ),
+            (
+                "client.antigravity.weekly",
+                "Weekly Quota",
+                7 * 24 * 3600,
+                remaining_percent(stats.weekly_remaining_percent, stats.weekly_used_percent),
+                unix(stats.weekly_resets_at_unix),
+            ),
+        ];
+        for (id, label, duration, remaining_percent, resets_at) in quotas {
+            if remaining_percent.is_none() {
+                continue;
+            }
+            support::push_window(
+                &mut windows,
+                &source,
+                OBSERVED_VIA,
+                now,
+                WindowSpec {
+                    remaining_percent,
+                    window_duration_seconds: Some(duration),
+                    resets_at,
+                    ..WindowSpec::new(id, label, MetricDimension::Requests)
                 },
-            });
+            )?;
         }
 
-        if let Some(rem_pct) = stats.weekly_remaining_percent.or_else(|| {
-            stats
-                .weekly_used_percent
-                .map(|used| (100.0 - used).clamp(0.0, 100.0))
-        }) {
-            let resets_at = stats
-                .weekly_resets_at_unix
-                .and_then(|ts| OffsetDateTime::from_unix_timestamp(ts).ok());
-
-            let window_id = WindowId::new("client.antigravity.weekly")
-                .map_err(|_| SourceError::InvalidPayload)?;
-
-            windows.push(BudgetWindow {
-                id: window_id,
-                label: Some("Weekly Quota".into()),
-                dimension: MetricDimension::Requests,
-                used: None,
-                limit: None,
-                remaining: None,
-                used_percent: Some((100.0 - rem_pct).clamp(0.0, 100.0)),
-                remaining_percent: Some(rem_pct),
-                window_duration_seconds: Some(7 * 24 * 3600),
-                resets_at,
-                fresh_until: Some(now + SignedDuration::seconds(60)),
-                hard_blocked: rem_pct <= 0.0,
-                applicability: Applicability::Applicable,
-                observed_at: now,
-                freshness: Freshness::Fresh,
-                provenance: Provenance {
-                    source_id,
-                    source_quality: SourceQuality::OfficialTelemetry,
-                    observed_via: Some("antigravity_quota".into()),
-                },
-            });
-        }
-
-        if windows.is_empty() {
-            warnings.push(SnapshotWarning {
-                code: "antigravity_stats_missing".into(),
-                message: "No Antigravity quota information available".into(),
-            });
-        }
-
-        Ok(BudgetSnapshot {
-            source: descriptor,
-            account_scope: None,
-            availability: if windows.is_empty() {
-                Availability::Unknown
-            } else {
-                Availability::Allowed
-            },
+        Ok(support::snapshot(
+            source,
+            now,
             windows,
-            observed_at: now,
-            warnings,
-        })
+            "antigravity_stats_missing",
+            "No Antigravity quota information available",
+        ))
     }
 
     pub async fn probe_surfaces(&self) -> Vec<&'static str> {
@@ -295,22 +235,17 @@ mod tests {
         let five_h = &snapshot.windows[0];
         assert_eq!(five_h.id.as_str(), "client.antigravity.five_hour");
         assert_eq!(five_h.remaining_percent, Some(75.0));
+        assert!(five_h.resets_at.is_some());
 
         let weekly = &snapshot.windows[1];
         assert_eq!(weekly.id.as_str(), "client.antigravity.weekly");
         assert_eq!(weekly.remaining_percent, Some(60.0));
     }
-    #[test]
-    fn empty_stats_stay_unknown() {
-        let snapshot =
-            AntigravityAdapter::normalize(AntigravityQuotaStats::default()).expect("normalize");
-        assert!(snapshot.windows.is_empty());
-        assert!(matches!(snapshot.availability, Availability::Unknown));
-    }
 
     #[tokio::test]
-    async fn refresh_reports_unsupported_until_a_real_surface_exists() {
-        let result = AntigravityAdapter::new("agy").refresh().await;
-        assert!(matches!(result, Err(SourceError::UnsupportedVersion)));
+    async fn detection_only_contract() {
+        let empty =
+            AntigravityAdapter::normalize(AntigravityQuotaStats::default()).expect("normalize");
+        support::assert_detection_only(&AntigravityAdapter::new("agy"), empty).await;
     }
 }
