@@ -2,6 +2,14 @@
 
 All notable changes to FluxGuard will be documented here.
 
+## [0.1.2](https://github.com/suiflex/FluxGuard/compare/v0.1.1...v0.1.2) (2026-09-12)
+
+
+### Bug Fixes
+
+* **ci:** align release publish workflow with safehell standard ([b58bcec](https://github.com/suiflex/FluxGuard/commit/b58bcec8301128916ef07206051782ef390f56c1))
+* **ci:** align release-build workflow and formula template with SafeHell ([d278de3](https://github.com/suiflex/FluxGuard/commit/d278de37a57d6cf1a3590d7f32adfcf610d1e1a7))
+
 ## [0.1.1](https://github.com/suiflex/FluxGuard/compare/v0.1.0...v0.1.1) (2026-09-12)
 
 
