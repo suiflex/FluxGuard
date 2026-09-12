@@ -10,10 +10,10 @@ homepage.workspace = true
 [dependencies]
 clap.workspace = true
 directories.workspace = true
-fluxguard-adapters = { version = "0.0.0", path = "../fluxguard-adapters" }
-fluxguard-core = { version = "0.0.0", path = "../fluxguard-core" }
-fluxguard-mcp = { version = "0.0.0", path = "../fluxguard-mcp", features = ["http"] }
-fluxguard-runtime = { version = "0.0.0", path = "../fluxguard-runtime" }
+fluxguard-adapters = { version = "0.1.0", path = "../fluxguard-adapters" }
+fluxguard-core = { version = "0.1.0", path = "../fluxguard-core" }
+fluxguard-mcp = { version = "0.1.0", path = "../fluxguard-mcp", features = ["http"] }
+fluxguard-runtime = { version = "0.1.0", path = "../fluxguard-runtime" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
