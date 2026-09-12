@@ -160,3 +160,18 @@ pub trait BudgetSource: Send + Sync {
         self.descriptor().id
     }
 }
+
+/// `run` strategy for sources that read a one-shot local snapshot: refresh
+/// once, publish it, then idle until cancelled.
+pub async fn publish_once(
+    source: &(impl BudgetSource + ?Sized),
+    updates: watch::Sender<SourceState>,
+    cancel: CancellationToken,
+) -> Result<(), SourceError> {
+    let snapshot = source.refresh().await?;
+    updates
+        .send(SourceState::ready(snapshot))
+        .map_err(|_| SourceError::Other)?;
+    cancel.cancelled().await;
+    Ok(())
+}
