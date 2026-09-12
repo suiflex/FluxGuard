@@ -35,7 +35,7 @@ jobs:
           allowlist: mulhamna,badrus123,*[bot]
           custom-notsigned-prcomment: >
             Thanks for your contribution! Before we can merge, please read our
-            [Contributor License Agreement](https://github.com/suiflex/FluxGuard/blob/main/CLA.md)
+            [Contributor License Agreement](https://github.com/suiflex/FluxGuard/blob/develop/CLA.md)
             and sign it by posting the comment below.
           custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA
           custom-allsigned-prcomment: All contributors have signed the CLA.

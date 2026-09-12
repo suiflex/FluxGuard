@@ -2,7 +2,7 @@ name: npm
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - "npm/**"
       - "Makefile"
