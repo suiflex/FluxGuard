@@ -1,9 +1,7 @@
 use std::{
-    fs,
     io::{self, IsTerminal},
     net::SocketAddr,
     path::{Path, PathBuf},
-    process::Command as ProcessCommand,
     sync::Arc,
     time::Duration,
 };
@@ -24,6 +22,7 @@ use fluxguard_core::{
 };
 use fluxguard_mcp::FluxGuardServer;
 use fluxguard_runtime::{BudgetSource, ManualSource, SourceRegistry, SourceStateKind};
+use kurir::{Harness, RegistrationOptions, Scope, ServerSpec};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -58,12 +57,8 @@ pub enum CliError {
     UnsupportedClient(String),
     #[error("MCP client configuration is invalid")]
     InvalidClientConfig,
-    #[error(
-        "MCP client configuration conflicts with an existing entry; pass --force to replace it"
-    )]
-    ClientConfigConflict,
-    #[error("MCP client command failed")]
-    ClientCommandFailed,
+    #[error(transparent)]
+    ClientRegistration(#[from] kurir::Error),
 }
 
 #[derive(Debug, Parser)]
@@ -319,62 +314,71 @@ fn install(
         return Err(CliError::UnsupportedClient(client));
     }
 
-    let entry = server_entry(&client);
-    if print || dry_run {
-        println!("{}", serde_json::to_string_pretty(&entry)?);
+    let Some(harness) = harness_for(&client) else {
+        println!("Configure this client to launch `fluxguard serve` over local MCP stdio.");
+        return Ok(());
+    };
+    let spec = ServerSpec::stdio(name, "fluxguard", vec!["serve".into()]);
+    if harness.is_snippet_only() {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&kurir::registration::snippet_for(&spec))?
+        );
+        return Ok(());
     }
 
-    match client.as_str() {
-        "codex" => install_codex(&name, dry_run, force),
-        "claude-code" => {
-            let path = if project {
-                PathBuf::from(".mcp.json")
-            } else {
-                home_path(".claude.json")?
-            };
-            install_file_client(&name, &path, &["mcpServers"], entry, print, dry_run, force)
+    let options = RegistrationOptions {
+        // `--project` has only ever meant the Claude Code project file.
+        scope: if project && harness == Harness::ClaudeCode {
+            Scope::Project
+        } else {
+            Scope::User
+        },
+        // Existing installs live in the JSONC file OpenCode reads, not the
+        // `opencode.json` Kurir would pick.
+        config: if harness == Harness::OpenCode {
+            Some(home_path(".config/opencode/opencode.jsonc")?)
+        } else {
+            None
+        },
+        force,
+        dry_run,
+        print: print || dry_run,
+        ..RegistrationOptions::default()
+    };
+    let result = kurir::register(harness, &spec, &options)?;
+    match (result.changed, &result.target) {
+        (true, Some(path)) => println!(
+            "installed FluxGuard MCP entry `{}` into {}",
+            result.name,
+            path.display()
+        ),
+        (true, None) => println!(
+            "installed FluxGuard MCP entry `{}` via {}",
+            result.name, result.harness
+        ),
+        (false, _) if result.action == "already-configured" => {
+            println!("FluxGuard MCP entry `{}` already configured", result.name);
         }
-        "cursor" => install_file_client(
-            &name,
-            &home_path(".cursor/mcp.json")?,
-            &["mcpServers"],
-            entry,
-            print,
-            dry_run,
-            force,
-        ),
-        "opencode" => install_file_client(
-            &name,
-            &home_path(".config/opencode/opencode.jsonc")?,
-            &["mcp"],
-            entry,
-            print,
-            dry_run,
-            force,
-        ),
-        "antigravity" => install_file_client(
-            &name,
-            &home_path(".gemini/antigravity/mcp_config.json")?,
-            &["mcpServers"],
-            entry,
-            print,
-            dry_run,
-            force,
-        ),
-        "openclaw" => install_file_client(
-            &name,
-            &home_path(".openclaw/openclaw.json")?,
-            &["mcp", "servers"],
-            entry,
-            print,
-            dry_run,
-            force,
-        ),
-        "generic-json" | "omp" | "hermes" | "9router" => {
-            println!("Configure this client to launch `fluxguard serve` over local MCP stdio.");
-            Ok(())
-        }
-        _ => unreachable!("client list is exhaustive"),
+        (false, _) => {}
+    }
+    Ok(())
+}
+
+/// Clients Kurir registers; `None` means the user wires `fluxguard serve` by hand.
+fn harness_for(client: &str) -> Option<Harness> {
+    match client {
+        "claude-code" => Some(Harness::ClaudeCode),
+        "codex" => Some(Harness::Codex),
+        "cursor" => Some(Harness::Cursor),
+        "opencode" => Some(Harness::OpenCode),
+        // Kurir's `antigravity` alias is the CLI; FluxGuard has always written
+        // the desktop config.
+        "antigravity" => Some(Harness::AntigravityDesktop),
+        "openclaw" => Some(Harness::OpenClaw),
+        "hermes" => Some(Harness::Hermes),
+        "omp" => Some(Harness::Omp),
+        _ => None,
     }
 }
 
@@ -412,8 +416,8 @@ const CLIENT_SUMMARY: &[(&str, &str, Option<&str>)] = &[
         Some(".gemini"),
     ),
     ("openclaw", "~/.openclaw/openclaw.json", Some(".openclaw")),
-    ("omp", "prints manual MCP instructions", None),
-    ("hermes", "prints manual MCP instructions", None),
+    ("omp", "prints a portable MCP snippet", None),
+    ("hermes", "hermes mcp add", None),
     ("9router", "prints manual MCP instructions", None),
     ("generic-json", "prints manual MCP instructions", None),
 ];
@@ -510,165 +514,6 @@ fn choose_client() -> Result<String, CliError> {
 
 fn first_word(row: &str) -> String {
     row.split_whitespace().next().unwrap_or_default().to_owned()
-}
-
-fn server_entry(client: &str) -> serde_json::Value {
-    match client {
-        "opencode" => serde_json::json!({
-            "type": "local",
-            "command": ["fluxguard", "serve"],
-            "enabled": true
-        }),
-        "openclaw" => serde_json::json!({
-            "command": "fluxguard",
-            "args": ["serve"],
-            "transport": "stdio"
-        }),
-        _ => serde_json::json!({
-            "command": "fluxguard",
-            "args": ["serve"]
-        }),
-    }
-}
-
-fn install_codex(name: &str, dry_run: bool, force: bool) -> Result<(), CliError> {
-    let mut command = format!("codex mcp add {name}");
-    if force {
-        command.push_str(&format!("  (remove existing {name} first)"));
-    }
-    command.push_str(" -- fluxguard serve");
-    if dry_run {
-        println!("{command}");
-        return Ok(());
-    }
-    if force {
-        let _ = ProcessCommand::new("codex")
-            .args(["mcp", "remove", name])
-            .status();
-    }
-    let status = ProcessCommand::new("codex")
-        .args(["mcp", "add", name, "--", "fluxguard", "serve"])
-        .status()
-        .map_err(|_| CliError::ClientCommandFailed)?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(CliError::ClientCommandFailed)
-    }
-}
-
-fn install_file_client(
-    name: &str,
-    path: &Path,
-    key_path: &[&str],
-    entry: serde_json::Value,
-    print: bool,
-    dry_run: bool,
-    force: bool,
-) -> Result<(), CliError> {
-    let mut root = if path.exists() {
-        let content = fs::read_to_string(path).map_err(|_| CliError::InvalidClientConfig)?;
-        serde_json::from_str::<serde_json::Value>(&strip_json_comments(&content))
-            .map_err(|_| CliError::InvalidClientConfig)?
-    } else {
-        serde_json::json!({})
-    };
-    let target = ensure_object_path(&mut root, key_path)?;
-    let object = target
-        .as_object_mut()
-        .ok_or(CliError::InvalidClientConfig)?;
-    if let Some(existing) = object.get(name) {
-        if existing != &entry && !force {
-            return Err(CliError::ClientConfigConflict);
-        }
-    }
-    object.insert(name.into(), entry);
-
-    if print {
-        println!("target: {}", path.display());
-    }
-    if dry_run {
-        return Ok(());
-    }
-    if path.exists() {
-        let backup = PathBuf::from(format!("{}.bak", path.display()));
-        fs::copy(path, backup).map_err(|_| CliError::InvalidClientConfig)?;
-    } else if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|_| CliError::InvalidClientConfig)?;
-    }
-    let content = serde_json::to_string_pretty(&root).map_err(|_| CliError::InvalidClientConfig)?;
-    fs::write(path, format!("{content}\n")).map_err(|_| CliError::InvalidClientConfig)?;
-    println!(
-        "installed FluxGuard MCP entry `{name}` into {}",
-        path.display()
-    );
-    Ok(())
-}
-
-fn ensure_object_path<'a>(
-    root: &'a mut serde_json::Value,
-    keys: &[&str],
-) -> Result<&'a mut serde_json::Value, CliError> {
-    let mut current = root;
-    for key in keys {
-        let object = current
-            .as_object_mut()
-            .ok_or(CliError::InvalidClientConfig)?;
-        current = object.entry(*key).or_insert_with(|| serde_json::json!({}));
-    }
-    Ok(current)
-}
-fn strip_json_comments(content: &str) -> String {
-    let mut output = String::with_capacity(content.len());
-    let mut chars = content.chars().peekable();
-    let mut in_string = false;
-    let mut escaped = false;
-    let mut line_comment = false;
-    let mut block_comment = false;
-
-    while let Some(character) = chars.next() {
-        if line_comment {
-            if character == '\n' {
-                line_comment = false;
-                output.push(character);
-            }
-            continue;
-        }
-        if block_comment {
-            if character == '*' && chars.peek() == Some(&'/') {
-                chars.next();
-                block_comment = false;
-                output.push(' ');
-            } else if character == '\n' {
-                output.push(character);
-            }
-            continue;
-        }
-        if in_string {
-            output.push(character);
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-        if character == '"' {
-            in_string = true;
-            output.push(character);
-        } else if character == '/' && chars.peek() == Some(&'/') {
-            chars.next();
-            line_comment = true;
-        } else if character == '/' && chars.peek() == Some(&'*') {
-            chars.next();
-            block_comment = true;
-        } else {
-            output.push(character);
-        }
-    }
-    output
 }
 
 fn home_path(relative: &str) -> Result<PathBuf, CliError> {
