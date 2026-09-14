@@ -120,17 +120,19 @@
     <circle cx="178" cy="24" r="3.5" fill="#3bf686" filter="url(#green-glow)"/>
     <line x1="16" y1="40" x2="179" y2="40" stroke="#162922" stroke-width="1"/>
 
-    <!-- Glowing Logo in Core -->
-    <g transform="translate(61, 62)">
-      <!-- Outer Glow Shield -->
-      <path d="M36 6 L64 14 V38 C64 56 48 70 36 76 C24 70 8 56 8 38 V14 Z" fill="#0d281e" stroke="#3bf686" stroke-width="2.6" filter="url(#green-glow)"/>
-      <!-- S-curve line inside shield -->
-      <path d="M26 26 Q46 36 28 50 T44 64" fill="none" stroke="#3bf686" stroke-width="4.5" stroke-linecap="round"/>
+    <!-- Official FluxGuard Logo in Core -->
+    <g transform="translate(46, 52) scale(3.2)">
+      <rect width="32" height="32" rx="7" fill="#0b1713" stroke="#1f4c38" stroke-width="0.8"/>
+      <path d="M8 8.5 H24 V17 C24 22 20.5 24.8 16 26.5 C11.5 24.8 8 22 8 17 Z" fill="url(#shieldGrad)" filter="url(#green-glow)"/>
+      <path d="M8 8.5 H24 V17 C24 22 20.5 24.8 16 26.5 C11.5 24.8 8 22 8 17 Z" fill="url(#shieldGrad)"/>
+      <g fill="none" stroke="#06120c" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.5 17.5 H13 L15 13 L17 22 L19 16.5 L20 17.5 H21.5" stroke-width="1.6"/>
+      </g>
     </g>
 
-    <text x="97.5" y="172" font-size="10" font-weight="700" fill="#88a096" text-anchor="middle" letter-spacing="0.8">DYNAMIC FLOW</text>
-    <rect x="42.5" y="186" width="110" height="6" rx="3" fill="#18362a"/>
-    <rect x="42.5" y="186" width="76" height="6" rx="3" fill="#3bf686"/>
+    <text x="97.5" y="174" font-size="10" font-weight="700" fill="#88a096" text-anchor="middle" letter-spacing="0.8">DYNAMIC FLOW</text>
+    <rect x="42.5" y="188" width="110" height="6" rx="3" fill="#18362a"/>
+    <rect x="42.5" y="188" width="76" height="6" rx="3" fill="#3bf686"/>
 
     <text x="97.5" y="218" font-size="9" font-weight="600" fill="#527969" text-anchor="middle">ACTIVE QUOTA GUARD</text>
     <text x="97.5" y="234" font-size="8.5" font-weight="500" fill="#3d5a4e" text-anchor="middle">0.2.0 • STABLE</text>
