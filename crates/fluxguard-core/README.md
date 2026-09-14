@@ -222,7 +222,11 @@ fluxguard install --client opencode
 fluxguard install --client antigravity
 fluxguard install --client openclaw
 fluxguard install --client codex
+fluxguard install --client hermes
 ```
+
+Registration is handled by [Kurir](https://github.com/suiflex/kurir): `codex` and
+`hermes` delegate to their own `mcp add` command, and `omp` prints a portable snippet.
 
 Preview changes without modifying files:
 
@@ -230,7 +234,7 @@ Preview changes without modifying files:
 fluxguard install --client claude-code --print --dry-run
 ```
 
-For harnesses with standalone stdio configuration (e.g. OMP, Hermes, 9router), run:
+For harnesses with standalone stdio configuration (e.g. 9router), run:
 
 ```bash
 fluxguard serve
