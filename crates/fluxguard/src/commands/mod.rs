@@ -923,3 +923,29 @@ fn state_name(state: &SourceStateKind) -> &'static str {
         SourceStateKind::Shutdown => "shutdown",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn install_clients_map_to_the_harness_they_always_wrote() {
+        let cases = [
+            ("claude-code", Some(Harness::ClaudeCode)),
+            ("codex", Some(Harness::Codex)),
+            ("cursor", Some(Harness::Cursor)),
+            ("opencode", Some(Harness::OpenCode)),
+            ("antigravity", Some(Harness::AntigravityDesktop)),
+            ("openclaw", Some(Harness::OpenClaw)),
+            ("hermes", Some(Harness::Hermes)),
+            ("omp", Some(Harness::Omp)),
+            ("9router", None),
+            ("generic-json", None),
+        ];
+        assert_eq!(cases.len(), SUPPORTED_INSTALL_CLIENTS.len());
+        for (client, expected) in cases {
+            assert!(SUPPORTED_INSTALL_CLIENTS.contains(&client));
+            assert_eq!(harness_for(client), expected, "{client}");
+        }
+    }
+}
