@@ -6,6 +6,10 @@ FluxGuard gives coding agents resource awareness: when to explore, when to paral
 
 It measures quota, context window, request rate limits, and budget flow (flux), returning concise execution advice so agents make cost-effective decisions and avoid unexpected quota exhaustion.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/suiflex/FluxGuard/develop/assets/brand/hero.svg" alt="FluxGuard Architecture and Resource Flow" width="100%">
+</p>
+
 > Pre-1.0: review the architecture and supported sources before deploying to production environments.
 
 ## Why this exists
