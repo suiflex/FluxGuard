@@ -11,6 +11,7 @@ homepage.workspace = true
 clap.workspace = true
 directories.workspace = true
 inquire.workspace = true
+kurir = "0.1"
 fluxguard-adapters = { version = "0.2.0", path = "../fluxguard-adapters" }
 fluxguard-core = { version = "0.2.0", path = "../fluxguard-core" }
 fluxguard-mcp = { version = "0.2.0", path = "../fluxguard-mcp", features = ["http"] }
