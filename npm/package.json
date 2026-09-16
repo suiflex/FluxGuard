@@ -1,6 +1,6 @@
 {
   "name": "@suiflex/fluxguard",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "FluxGuard resource awareness MCP launcher for AI coding agents",
   "license": "Apache-2.0",
   "repository": {

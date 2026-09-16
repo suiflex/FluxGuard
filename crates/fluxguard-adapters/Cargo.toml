@@ -8,8 +8,8 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-fluxguard-core = { version = "0.2.1", path = "../fluxguard-core" }
-fluxguard-runtime = { version = "0.2.1", path = "../fluxguard-runtime" }
+fluxguard-core = { version = "0.2.2", path = "../fluxguard-core" }
+fluxguard-runtime = { version = "0.2.2", path = "../fluxguard-runtime" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
