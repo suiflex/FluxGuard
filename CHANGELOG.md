@@ -2,6 +2,13 @@
 
 All notable changes to FluxGuard will be documented here.
 
+## [0.2.2](https://github.com/suiflex/FluxGuard/compare/v0.2.1...v0.2.2) (2026-09-16)
+
+
+### Bug Fixes
+
+* **ci:** isolate test scratch directories and update rustls ([#21](https://github.com/suiflex/FluxGuard/issues/21)) ([b60c0b0](https://github.com/suiflex/FluxGuard/commit/b60c0b0cab5d645ba9e3fef53c12e894aa5343c4))
+
 ## [0.2.1](https://github.com/suiflex/FluxGuard/compare/v0.2.0...v0.2.1) (2026-09-16)
 
 
