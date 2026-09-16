@@ -512,7 +512,7 @@ checksum = "3e0f1c7c3a72c66fd80abe965175f7523475c0489a87d3ff9d6e8c87d87a9d2d"
 
 [[package]]
 name = "fluxguard"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "directories",
@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "fluxguard-adapters"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "fluxguard-core",
@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "fluxguard-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "proptest",
  "serde",
@@ -559,7 +559,7 @@ dependencies = [
 
 [[package]]
 name = "fluxguard-mcp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "fluxguard-core",
@@ -574,7 +574,7 @@ dependencies = [
 
 [[package]]
 name = "fluxguard-runtime"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "fluxguard-core",
@@ -1634,9 +1634,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.44"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6725596c3f2c3a0aef021139e145d4eafe314a6623e4680ca83852b2c67ab2ba"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "once_cell",
  "ring",
