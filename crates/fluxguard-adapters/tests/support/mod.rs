@@ -6,13 +6,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
+
 /// Creates a unique scratch directory for a fake-binary test.
 pub(crate) fn test_dir(name: &str) -> PathBuf {
+    let pid = std::process::id();
+    let count = COUNTER.fetch_add(1, Ordering::Relaxed);
     let suffix = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("clock")
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("fluxguard-{name}-{suffix}"));
+    let root = std::env::temp_dir().join(format!("fluxguard-{name}-{pid}-{count}-{suffix}"));
     std::fs::create_dir_all(&root).expect("create test directory");
     root
 }

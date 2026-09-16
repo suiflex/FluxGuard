@@ -562,6 +562,7 @@ mod tests {
                 lines.push(format!("reply '{reply}'"));
             }
             lines.push("sleep 10".to_string());
+            lines.push(String::new());
             crate::test_support::write_executable(&path, &lines.join("\n"));
             (root, path)
         }
