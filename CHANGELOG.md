@@ -2,6 +2,13 @@
 
 All notable changes to FluxGuard will be documented here.
 
+## [0.2.1](https://github.com/suiflex/FluxGuard/compare/v0.2.0...v0.2.1) (2026-09-16)
+
+
+### Code Refactoring
+
+* **cli:** register install clients through kurir ([#18](https://github.com/suiflex/FluxGuard/issues/18)) ([7c1595a](https://github.com/suiflex/FluxGuard/commit/7c1595aff8bdbe703da4e7b821c9bdfb08f590e7))
+
 ## [0.2.0](https://github.com/suiflex/FluxGuard/compare/v0.1.3...v0.2.0) (2026-09-12)
 
 
