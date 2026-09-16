@@ -378,6 +378,7 @@ fn harness_for(client: &str) -> Option<Harness> {
         "openclaw" => Some(Harness::OpenClaw),
         "hermes" => Some(Harness::Hermes),
         "omp" => Some(Harness::Omp),
+        "arsy" => Some(Harness::ArsyCode),
         _ => None,
     }
 }
@@ -391,6 +392,7 @@ const SUPPORTED_INSTALL_CLIENTS: &[&str] = &[
     "openclaw",
     "omp",
     "hermes",
+    "arsy",
     "9router",
     "generic-json",
 ];
@@ -418,6 +420,7 @@ const CLIENT_SUMMARY: &[(&str, &str, Option<&str>)] = &[
     ("openclaw", "~/.openclaw/openclaw.json", Some(".openclaw")),
     ("omp", "prints a portable MCP snippet", None),
     ("hermes", "hermes mcp add", None),
+    ("arsy", "arsy mcp add", Some(".arsy")),
     ("9router", "prints manual MCP instructions", None),
     ("generic-json", "prints manual MCP instructions", None),
 ];
@@ -939,6 +942,7 @@ mod tests {
             ("openclaw", Some(Harness::OpenClaw)),
             ("hermes", Some(Harness::Hermes)),
             ("omp", Some(Harness::Omp)),
+            ("arsy", Some(Harness::ArsyCode)),
             ("9router", None),
             ("generic-json", None),
         ];

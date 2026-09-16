@@ -223,10 +223,12 @@ fluxguard install --client antigravity
 fluxguard install --client openclaw
 fluxguard install --client codex
 fluxguard install --client hermes
+fluxguard install --client arsy
 ```
 
-Registration is handled by [Kurir](https://github.com/suiflex/kurir): `codex` and
-`hermes` delegate to their own `mcp add` command, and `omp` prints a portable snippet.
+Registration is handled by [Kurir](https://github.com/suiflex/kurir): `codex`,
+`hermes`, and `arsy` delegate to their own `mcp add` command, and `omp` prints a
+portable snippet.
 
 Preview changes without modifying files:
 
