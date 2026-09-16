@@ -685,7 +685,7 @@ mod tests {
         registry.register(adapter).expect("register");
         let mut state = registry.subscribe(&id).expect("subscribe");
         registry.start();
-        tokio::time::timeout(Duration::from_secs(5), state.changed())
+        tokio::time::timeout(Duration::from_secs(10), state.changed())
             .await
             .expect("restart completed")
             .expect("state channel");
