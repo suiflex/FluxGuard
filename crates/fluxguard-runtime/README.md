@@ -2,6 +2,8 @@
 
 # FluxGuard
 
+[![M8ven Live Monitored](https://m8ven.ai/badge/mcp/suiflex-fluxguard-1nzps9)](https://m8ven.ai/mcp/suiflex-fluxguard-1nzps9)
+
 FluxGuard gives coding agents resource awareness: when to explore, when to parallelize, when to conserve, and when to finish.
 
 It measures quota, context window, request rate limits, and budget flow (flux), returning concise execution advice so agents make cost-effective decisions and avoid unexpected quota exhaustion.
